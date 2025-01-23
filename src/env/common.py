@@ -29,6 +29,42 @@ AI_SEARCH_DEPTH = 5
 # from x = 0 to 8(left right), y = 9 to 0(top bottom)
 init_fen = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR r - - 0 1'
 
+PIECES = {
+    'r': '俥',  # Red Chariot
+    'n': '傌',  # Red Horse
+    'b': '相',  # Red Elephant
+    'a': '仕',  # Red Advisor
+    'k': '帥',  # Red General (King)
+    'c': '炮',  # Red Cannon
+    'p': '兵',  # Red Soldier
+    'R': '車',  # Black Chariot
+    'N': '馬',  # Black Horse
+    'B': '象',  # Black Elephant
+    'A': '士',  # Black Advisor
+    'K': '將',  # Black General (King)
+    'C': '砲',  # Black Cannon
+    'P': '卒',  # Black Soldier
+    '.': '..',  # Empty space
+}
+
+REVERSE_PIECES = {
+    '俥': 'r',  # Red Chariot
+    '傌': 'n',  # Red Horse
+    '相': 'b',  # Red Elephant
+    '仕': 'a',  # Red Advisor
+    '帥': 'k',  # Red General (King)
+    '炮': 'c',  # Red Cannon
+    '兵': 'p',  # Red Soldier
+    '車': 'R',  # Black Chariot
+    '馬': 'N',  # Black Horse
+    '象': 'B',  # Black Elephant
+    '士': 'A',  # Black Advisor
+    '將': 'K',  # Black General (King)
+    '砲': 'C',  # Black Cannon
+    '卒': 'P',  # Black Soldier
+    '..': '.',  # Empty space
+}
+
 replace_dict = {
     'n': 'k',
     'N': 'K',
@@ -130,6 +166,10 @@ def str_to_move(move_str):
     move_arr[3] = int(move_str[3])
     return move_arr
 
+piece_to_plane = {
+    'r': 0, 'n': 1, 'b': 2, 'a': 3, 'k': 4, 'c': 5, 'p': 6,
+    'R': 7, 'N': 8, 'B': 9, 'A': 10, 'K': 11, 'C': 12, 'P': 13
+}
 class Move:
     def __init__(self, uci:str):
         s = str_to_move(uci)

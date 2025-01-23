@@ -1,0 +1,51 @@
+import yaml
+import munch
+
+def load_config_from_yaml(file_path):
+    with open(file_path, 'r') as file:
+        config = yaml.safe_load(file)
+    return config
+
+config_path = './config/model.yaml'
+yaml_config = load_config_from_yaml(config_path)
+service_yaml_config = load_config_from_yaml('./config/service.yaml')
+
+class SelfPlayConfig:
+    def __init__(self):
+        self.game_num = 128
+        #self.mcts_sims = 800
+        self.mcts_sims = 100
+        self.max_depth = 200
+        self.num_clients = 50
+        self.noise_eps = 0.5
+        self.dir_alpha = 0.1
+        self.wgt_p = 1.0
+        self.virtual_loss = 3.0
+        # make sure win_reward is greater than other reward/loss
+        self.win_reward = 5.0
+        self.resigned_threshold = 0.8
+        self.min_resigned_turn = 5
+
+class ModelConfig:
+    def __init__(self, yaml_config):
+        self.cnn_filter_num = yaml_config.get('cnn_filter_num', 256)
+        self.cnn_first_filter_size = yaml_config.get('cnn_first_filter_size', 5)
+        self.cnn_filter_size = yaml_config.get('cnn_filter_size', 3)
+        self.res_layer_num = yaml_config.get('res_layer_num', 7)
+        self.l2_reg = yaml_config.get('l2_reg', 1e-4)
+        self.value_fc_size = yaml_config.get('value_fc_size', 256)
+        self.distributed = yaml_config.get('distributed', False)
+        self.input_depth = yaml_config.get('input_depth', 18)
+
+class ServiceConfig:
+    def __init__(self, yaml_config):
+        self.batch_size_serve = yaml_config.get('batch_size_serve', 256)
+        self.batch_timeout = yaml_config.get('batch_timeout', 0.3)
+        
+config = munch.munchify(
+    {
+        'model': ModelConfig(yaml_config),
+        'service': ServiceConfig(service_yaml_config),
+        'self_play': SelfPlayConfig()
+    }
+)

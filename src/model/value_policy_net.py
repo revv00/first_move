@@ -4,22 +4,22 @@ import torch.nn.functional as F
 from torchvision.models.resnet import BasicBlock
 
 from logging import getLogger
-from cchess_alphazero.agent.api import CChessModelAPI
-from cchess_alphazero.config import Config
-from cchess_alphazero.environment.lookup_tables import ActionLabelsRed, ActionLabelsBlack
+from config import config
+from env.chessboard import Chessboard, action_labels
 
 logger = getLogger(__name__)
 
 class ValuePolicyNet(nn.Module):
-    def __init__(self, config: Config):
+    def __init__(self, config):
         super(ValuePolicyNet, self).__init__()
-        self.config = config
-        self.n_labels = len(ActionLabelsRed)
-        mc = self.config.model
+        self.n_labels = len(action_labels)
+        mc = config
         
-        # Input layer
-        self.input_conv = nn.Conv2d(9, mc.cnn_filter_num, mc.cnn_first_filter_size, 
-                                   padding='same', bias=False)
+        # Input layer,  # (batch, channels, height, width), input is B x 14 x 10 x 9
+        # C_in = 9, C_out=256?
+        self.input_conv = nn.Conv2d(14, mc.cnn_filter_num,
+                                    kernel_size=mc.cnn_first_filter_size, 
+                                    padding='same', bias=False)
         self.input_bn = nn.BatchNorm2d(mc.cnn_filter_num)
         
         # Residual blocks using torchvision's BasicBlock
@@ -31,12 +31,12 @@ class ValuePolicyNet(nn.Module):
         # Policy head
         self.policy_conv = nn.Conv2d(mc.cnn_filter_num, 4, 1, bias=False)
         self.policy_bn = nn.BatchNorm2d(4)
-        self.policy_dense = nn.Linear(4 * 14 * 10, self.n_labels)
+        self.policy_dense = nn.Linear(4 * mc.board_width * mc.board_height, self.n_labels)
         
         # Value head
         self.value_conv = nn.Conv2d(mc.cnn_filter_num, 2, 1, bias=False)
         self.value_bn = nn.BatchNorm2d(2)
-        self.value_dense1 = nn.Linear(2 * 14 * 10, mc.value_fc_size)
+        self.value_dense1 = nn.Linear(2 * mc.board_width * mc.board_height, mc.value_fc_size)
         self.value_dense2 = nn.Linear(mc.value_fc_size, 1)
         
     def forward(self, x):

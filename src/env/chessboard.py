@@ -18,12 +18,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Shamelessly copied from https://github.com/NeymarL/ChineseChess-AlphaZero
 
-from common import *
+from .common import *
 from enum import Enum
+import numpy as np
+from colorama import Fore, Back, Style, init
+init(autoreset=True)
 
 Winner = Enum("Winner", "red black draw")
 
-class Chessboard:
+class ChessBoard:
     """
     Chessboard for Chinese Chess. board is a 10x9 2D array, following natrual cartesian coordinate system.
     This chessboard is designed for holding state for normal 1v1 play. If you need to do MCTS, you should
@@ -61,6 +64,10 @@ class Chessboard:
                 x, y = int(pos[0]), 9 - int(pos[1])
                 self.board[y][x] = piece
 
+    def assign_board(self, board, turn=RED):
+        self.board = board
+        self.turn = turn
+
     def assign_fen(self, fen):
         if fen is None:
             fen = init_fen
@@ -82,6 +89,25 @@ class Chessboard:
             else:
                 self.board[y][x] = ch
                 x = x + 1
+
+    def get_plane(self):
+        # wxh 9x10 board to 14x9x10 one hot encoding, where 14 means types of chess item
+        plane = np.zeros((14, self.height, self.width), dtype=int)
+        if self.is_red_turn:
+            for y in range(self.height):
+                for x in range(self.width):
+                    piece = self.board[y][x]
+                    if piece != '.':
+                        plane[piece_to_plane[piece]][y][x] = 1
+        else:
+            # pretend to be red
+            for y in range(self.height):
+                for x in range(self.width):
+                    piece = self.board[self.height - y - 1][self.width - x - 1]
+                    if piece != '.':
+                        piece = self.swapcase(piece)
+                        plane[piece_to_plane[piece]][y][x] = 1
+        return plane
 
     def FENboard(self):
         """
@@ -238,9 +264,9 @@ class Chessboard:
                     black_k[0] = i
                     black_k[1] = j
         if red_k[0] == 0 and red_k[1] == 0:
-            self.winner = Winner.black
+            self.winner = BLACK#Winner.black
         elif black_k[0] == 0 and black_k[1] == 0:
-            self.winner = Winner.red
+            self.winner = RED#Winner.red
         elif red_k[1] == black_k[1]:
             has_block = False
             i = red_k[0] + 1
@@ -251,9 +277,9 @@ class Chessboard:
                 i += 1
             if not has_block:
                 if self.turn == RED:
-                    self.winner = Winner.red
+                    self.winner = RED
                 else:
-                    self.winner = Winner.black
+                    self.winner = BLACK
         return self.winner is not None
 
     def print_to_cl(self):
@@ -264,6 +290,9 @@ class Chessboard:
         mov = Move(uci)
         self.push(mov)
         return True
+
+    def move(self, mov):
+        self.push(mov)
 
     def push(self, mov):
         self.board[mov.n[1]][mov.n[0]] = self.board[mov.p[1]][mov.p[0]]
@@ -413,10 +442,224 @@ class Chessboard:
         if a.isalpha():
             return a.lower() if a.isupper() else a.upper()
         return a
+    
+    def has_attack_chessman(self):
+        for row in self.board:
+            for chessman in row:
+                c = chessman.lower()
+                if c in ['r', 'n', 'p', 'c']:
+                    return True
+        return False
+    
+    """
+    static part
+    """
+    def create_action_labels():
+        labels_array = []   # [col_src,row_src,col_dst,row_dst]
+        numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'] # row
+        letters = ['0', '1', '2', '3', '4', '5', '6', '7', '8'] # col
+
+        for n1 in range(10):
+            for l1 in range(9):
+                destinations = [(n1, t) for t in range(9)] + \
+                            [(t, l1) for t in range(10)] + \
+                            [(n1 + a, l1 + b) for (a, b) in
+                                [(-2, -1), (-1, -2), (-2, 1), (1, -2), (2, -1), (-1, 2), (2, 1), (1, 2)]]
+                for (n2, l2) in destinations:
+                    if (n1, l1) != (n2, l2) and n2 in range(10) and l2 in range(9):
+                        move = letters[l1] + numbers[n1] + letters[l2] + numbers[n2]
+                        labels_array.append(move)
+
+        #for red mandarin
+        labels_array.append('3041')
+        labels_array.append('5041')
+        labels_array.append('3241')
+        labels_array.append('5241')
+        labels_array.append('4130')
+        labels_array.append('4150')
+        labels_array.append('4132')
+        labels_array.append('4152')
+        # for black mandarin
+        labels_array.append('3948')
+        labels_array.append('5948')
+        labels_array.append('3748')
+        labels_array.append('5748')
+        labels_array.append('4839')
+        labels_array.append('4859')
+        labels_array.append('4837')
+        labels_array.append('4857')
+
+        #for red elephant
+        labels_array.append('2002')
+        labels_array.append('2042')
+        labels_array.append('6042')
+        labels_array.append('6082')
+        labels_array.append('2402')
+        labels_array.append('2442')
+        labels_array.append('6442')
+        labels_array.append('6482')
+        labels_array.append('0220')
+        labels_array.append('4220')
+        labels_array.append('4260')
+        labels_array.append('8260')
+        labels_array.append('0224')
+        labels_array.append('4224')
+        labels_array.append('4264')
+        labels_array.append('8264')
+        # for black elephant
+        labels_array.append('2907')
+        labels_array.append('2947')
+        labels_array.append('6947')
+        labels_array.append('6987')
+        labels_array.append('2507')
+        labels_array.append('2547')
+        labels_array.append('6547')
+        labels_array.append('6587')
+        labels_array.append('0729')
+        labels_array.append('4729')
+        labels_array.append('4769')
+        labels_array.append('8769')
+        labels_array.append('0725')
+        labels_array.append('4725')
+        labels_array.append('4765')
+        labels_array.append('8765')
+
+        return labels_array
+    
+    def flip_move(x):
+        new = ''.join([str(8 - int(x[0])),
+                       str(9 - int(x[1])),
+                       str(8 - int(x[2])),
+                       str(9 - int(x[3]))
+                      ])
+        return new
+    
+    def orig_move(x, player):
+        if player == RED:
+            return x
+        else:
+            return ChessBoard.flip_move(x)
+
+    def print_board_impl(board, move_from=None, move_to=None):
+        """
+        Print the Chinese Chess board in ASCII with colors.
+        :param board: The current board state.
+        :param move_from: The position (row, col) of the piece being moved.
+        :param move_to: The destination position (row, col) of the move.
+        """
+        # Define the board layout with borders and labels
+        print("    a    b    c    d    e    f    g    h    i")
+        print(" +----+----+----+----+----+----+----+----+----+")
+        
+        for i in range(10):
+            i_ = 9 - i
+            row = str(i_) + "|"
+            for j in range(9):
+                piece = board[i_][j]
+                piece1 = PIECES.get(piece, piece)
+                # Highlight the "move_from" and "move_to" positions
+                if (i_, j) == move_from:
+                    row += f" {Back.RED}{Fore.WHITE}{piece1}{Style.RESET_ALL} |"
+                elif (i_, j) == move_to:
+                    row += f" {Back.GREEN}{Fore.WHITE}{piece1}{Style.RESET_ALL} |"
+                else:
+                    # Color Red pieces in red and Black pieces in blue
+                    if piece.isupper():  # Red pieces
+                        row += f" {Fore.GREEN}{piece1}{Style.RESET_ALL} |"
+                    elif piece.islower():  # Black pieces
+                        row += f" {Fore.RED}{piece1}{Style.RESET_ALL} |"
+                    else:  # Empty spaces
+                        row += f" {piece1} |"
+            print(row)
+            print(" +----+----+----+----+----+----+----+----+----+")
+        
+        print("    a    b    c    d    e    f    g    h    i")
+
+    def initialize_board():
+        """
+        Initialize the Chinese Chess board with starting positions.
+        """
+        # Create a 10x9 grid (rows x columns)
+        board = [['·' for _ in range(9)] for _ in range(10)]
+        
+        # Red pieces
+        board[0] = ['R', 'H', 'E', 'A', 'K', 'A', 'E', 'H', 'R']
+        board[2] = ['·', 'C', '·', '·', '·', '·', '·', 'C', '·']
+        board[3] = ['S', '·', 'S', '·', 'S', '·', 'S', '·', 'S']
+        
+        # Black pieces
+        board[9] = ['r', 'h', 'e', 'a', 'k', 'a', 'e', 'h', 'r']
+        board[7] = ['·', 'c', '·', '·', '·', '·', '·', 'c', '·']
+        board[6] = ['s', '·', 's', '·', 's', '·', 's', '·', 's']
+        
+        return board
+
+    def infer_move(board1, board2):
+        """
+        Infer the move (move_from and move_to) by comparing board1 and board2.
+        :param board1: The board before the move.
+        :param board2: The board after the move.
+        :return: A tuple (move_from, move_to) representing the move.
+        """
+        move_from = None
+        move_to = None
+        for i in range(10):
+            for j in range(9):
+                if board1[i][j] != board2[i][j]:
+                    print(board1[i][j], board2[i][j])
+                    if board1[i][j] != '·':  # Piece moved from here
+                        move_from = (i, j)
+                    if board2[i][j] != '·':  # Piece moved to here
+                        move_to = (i, j)
+        
+        return move_from, move_to
+    
+    def print_board(prev_board, cur_board):
+        move_from, move_to = None, None
+        if prev_board is not None:
+            move_from, move_to = ChessBoard.infer_move(prev_board, cur_board)
+        ChessBoard.print_board_impl(cur_board, move_from, move_to)
+
+    def parse_visualization(visualization):
+        """
+        Convert a visualization of the Chinese Chess board back into its internal representation.
+        :param visualization: A list of strings representing the board visualization.
+        :return: A 10x9 grid representing the internal board state.
+        """
+        board = [['.' for _ in range(9)] for _ in range(10)]
+        visualization = visualization.split('\n')
+        # Skip the first two lines (headers and borders)
+        for i in range(2, 22, 2):  # Rows are printed every 2 lines
+            row = visualization[i].strip().split('|')[1:]  # Split by '|' and ignore the first element
+            for j in range(9):
+                piece = row[j].strip()  # Remove extra spaces
+                if piece in REVERSE_PIECES:
+                    board[(i // 2) - 1][j] = REVERSE_PIECES[piece]
+        board = list(reversed(board))
+        return board
+
+    def read_visualization_from_file(file_path):
+        """
+        Read the visualization of the Chinese Chess board from a file and parse it.
+        :param file_path: Path to the file containing the board visualization.
+        :return: A 10x9 grid representing the internal board state.
+        """
+        with open(file_path, 'r', encoding='utf-8') as file:
+            visualization = file.read()
+        return ChessBoard.parse_visualization(visualization)
+    
+    def hash_board(raw_board):
+        # NOTE: there can be confliction but it's good for debugging
+        # return abs(hash(repr(raw_board))) % 10000
+        return abs(hash(tuple(map(tuple, raw_board)))) % 10000
+
+label_actions = ChessBoard.create_action_labels()
+action_labels = {move: i for move, i in zip(label_actions, range(len(label_actions)))}
+
 
 
 if __name__ == '__main__': # test
-    board = Chessboard()
+    board = ChessBoard()
     board.turn = BLACK
     board.move_action_str('0304')
     board.print_to_cl()

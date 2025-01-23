@@ -1,0 +1,11 @@
+batch_size_serve: 256
+cnn_filter_num: 256
+cnn_first_filter_size: 5
+cnn_filter_size: 3
+res_layer_num: 7
+l2_reg: 0.0001
+value_fc_size: 256
+distributed: false
+input_depth: 18
+board_height: 10
+board_width: 9
