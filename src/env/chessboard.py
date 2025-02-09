@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Shamelessly copied from https://github.com/NeymarL/ChineseChess-AlphaZero
+import hashlib
 
 from .common import *
 from enum import Enum
@@ -651,7 +652,29 @@ class ChessBoard:
     def hash_board(raw_board):
         # NOTE: there can be confliction but it's good for debugging
         # return abs(hash(repr(raw_board))) % 10000
-        return abs(hash(tuple(map(tuple, raw_board)))) % 10000
+        #return abs(hash(tuple(map(tuple, raw_board)))) % 10000
+        s = ''.join([''.join(r) for r in raw_board])
+        return int(hashlib.sha256(s.encode('utf-8')).hexdigest(), 16)%10000
+    
+    def adjudicate_by_pieces(board):
+        piece_vals = {'K': 3, 'Q': 14, 'R': 5, 'B': 3.25, 'N': 3, 'P': 1} # somehow it doesn't know how to keep its queen
+        ans = 0.0
+        tot = 0
+        for c in fen.split(' ')[0]:
+            if not c.isalpha():
+                continue
+
+            if c.isupper():
+                ans += piece_vals[c]
+                tot += piece_vals[c]
+            else:
+                ans -= piece_vals[c.upper()]
+                tot += piece_vals[c.upper()]
+        v = ans/tot
+        if not absolute and is_black_turn(fen):
+            v = -v
+        assert abs(v) < 1
+        return np.tanh(v * 3) # arbitrary
 
 label_actions = ChessBoard.create_action_labels()
 action_labels = {move: i for move, i in zip(label_actions, range(len(label_actions)))}

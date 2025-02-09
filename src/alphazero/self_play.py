@@ -44,10 +44,10 @@ def play_a_game(config):
         if player == BLACK:
             action = ChessBoard.flip_move(action)
         # Perform the action on the board
-        board.move(action)
+        board.move_action_str(action)
         value = 0
         if board.steps/2 > config.max_game_length:
-            value = 0
+            value = ChessBoard.adjudicate_by_pieces(board)
             break
         else:
             is_end, end_type, value = adjudicate(mcts._history, board)

@@ -1,4 +1,4 @@
-import sys
+import os
 import copy
 import queue
 import math
@@ -13,7 +13,7 @@ from env import chessboard
 from env.chessboard import ChessBoard, action_labels, Winner
 from model.client import ModelClient
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(thread)d - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class StateStats:
@@ -40,6 +40,7 @@ class MCTS:
         self._locks = defaultdict(Lock)
         self._config = config
         self._history = []
+        self._print_lock = Lock()
         #self._model_clients = ThreadPoolExecutor(max_workers=self._config.num_clients)
         self._client_queue = queue.Queue()
         # TODO: uncomment this
@@ -51,7 +52,7 @@ class MCTS:
         self._tree = defaultdict(StateStats)
         with ThreadPoolExecutor(max_workers=self._config.mcts_sims) as executor:
             futures = [executor.submit(self.mcts_srch_once, copy.deepcopy(board), player) for _ in range(self._config.mcts_sims)]
-            vals = [future.result() for future in futures]
+            vals = [future.result()[1] for future in futures]
         policy = self.solve_policy(board)
         my_action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy, board.steps/2)))
         root_value = max(vals)
@@ -75,12 +76,16 @@ class MCTS:
         best_move = -1
         best_v = -1000
         sqrt_num = math.sqrt(ss.sum_n + 1)
-        logger.debug("Action selecting...")
+        with self._print_lock:
+            logger.debug("Action selecting...")
         for i, (move, stat) in enumerate(ss._as.items()):
-            print(state, chessboard.label_actions[move], stat)
             p = stat.p if not is_root else (1 - e) * stat.p + e * noise[i]
             v = stat.q + w_p * p * sqrt_num / (1 + stat.n)
-            if v > best_v:
+            if v == best_v:
+                if random.random() < 0.5:
+                    best_v = v
+                    best_move = move
+            elif v > best_v:
                 best_v = v
                 best_move = move
         return best_move, best_v 
@@ -93,11 +98,13 @@ class MCTS:
         if board.is_end():
             v = self._config.win_reward if (board.turn == board.winner) else \
                 (-self._config.win_reward if (board.winner is not None) else 0.0)
-            logger.debug(f"Find end state {board.board}, {v}")
+            with self._print_lock:
+                logger.debug(f"Find end state {board.board}, {v}")
             return None, v
         plane = board.get_plane()
-        dirichlet_distribution = np.random.dirichlet([1.0] * len(action_labels))
-        return dirichlet_distribution, random.choice([-0.1, 0, 0.1])
+        #dirichlet_distribution = np.random.dirichlet([1.0] * len(action_labels))
+        uniform_distribution = np.ones(len(action_labels)) / len(action_labels)
+        return uniform_distribution, random.choice([-0.1, 0, 0.1])
         # As if it is red
         """
         model_client = self._client_queue.get()
@@ -132,13 +139,14 @@ class MCTS:
                             stats._as[m].p = ps[m] / p_all
                     stats.v = v
                     stats.ps = ps
-                logger.debug(f"Find unk state {board.board}, {stats._as}, {v}")
-                return stats.v
+                with self._print_lock:
+                    logger.debug(f"Find unk state {ChessBoard.hash_board(board.board)}, {stats._as}, {v}")
+                return level, stats.v
             # Explore and Exploit
             best_move_idx, _ = self.action_selection_as_is_red(state, level==0)
             if best_move_idx == -1:
                 # no longer up propagate
-                return self._tree[state].v
+                return level, self._tree[state].v
             
             # hack to discount q so that other threads will explore more
             stats = self._tree[state]
@@ -153,15 +161,19 @@ class MCTS:
                 as_.q = as_.w/as_.n
         
         v = 0
+        depth = level
         if not (stats.v == 0.0 and stats.ps is None):
             mv = ChessBoard.orig_move(chessboard.label_actions[best_move_idx], player)
-            logger.debug(f"Action select for {player} at srch depth {level}: {mv}, {self._tree[state]._as}")
+            with self._print_lock:
+                logger.debug(f"L{level} Action select for {player}: {mv}")
             # NOTE: for debug TODO: remove 
             bef_board = copy.deepcopy(board.board)
             board.move_action_str(mv)
-            logger.debug(f"Move after action select: {mv}")
-            ChessBoard.print_board(None, board.board)
-            v = -self.mcts_srch_once(board, board.turn, level+1)
+            with self._print_lock:
+                logger.debug(f"L{level} Move after action select: {mv}")
+                ChessBoard.print_board(None, board.board)
+            depth, v = self.mcts_srch_once(board, board.turn, level+1)
+            v = -v
 
             # Up propagate the stats
             with self._locks[state]:
@@ -169,8 +181,9 @@ class MCTS:
                 as_.n += -vl + 1
                 as_.w += vl + v
                 as_.q = as_.w/as_.n
-            logger.debug(f"player:{player}, depth:{level}, board_before_mv:{ChessBoard.hash_board(bef_board)}, mv:{mv} n:{as_.n} W:{as_.w}, Q:{as_.q}")
-        return v
+            with self._print_lock:
+                logger.debug(f"L{level} player:{player},  board_before_mv:{ChessBoard.hash_board(bef_board)}, mv:{mv} n:{as_.n} W:{as_.w}, Q:{as_.q}")
+        return depth, v
 
     def solve_policy(self, board):
         state = board.FENboard(board.turn) if board.turn is RED else board.fliped_FENboard()
