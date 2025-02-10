@@ -93,7 +93,7 @@ class ChessBoard:
 
     def get_plane(self):
         # wxh 9x10 board to 14x9x10 one hot encoding, where 14 means types of chess item
-        plane = np.zeros((14, self.height, self.width), dtype=int)
+        plane = np.zeros((14, self.height, self.width), dtype=np.float32)
         if self.is_red_turn:
             for y in range(self.height):
                 for x in range(self.width):
@@ -656,24 +656,23 @@ class ChessBoard:
         s = ''.join([''.join(r) for r in raw_board])
         return int(hashlib.sha256(s.encode('utf-8')).hexdigest(), 16)%10000
     
-    def adjudicate_by_pieces(board):
-        piece_vals = {'K': 3, 'Q': 14, 'R': 5, 'B': 3.25, 'N': 3, 'P': 1} # somehow it doesn't know how to keep its queen
+    def adjudicate_by_pieces_for_red(board):
+        piece_vals = {'N': 3, 'K': 14, 'R': 5, 'C': 3.25, 'E': 2, 'A':2, 'P': 1}
         ans = 0.0
         tot = 0
-        for c in fen.split(' ')[0]:
-            if not c.isalpha():
-                continue
+        for r in board:
+            for c in r:
+                if not c.isalpha():
+                    continue
 
-            if c.isupper():
-                ans += piece_vals[c]
-                tot += piece_vals[c]
-            else:
-                ans -= piece_vals[c.upper()]
-                tot += piece_vals[c.upper()]
+                if not c.isupper():
+                    ans += piece_vals[c.upper()]
+                    tot += piece_vals[c.upper()]
+                else:
+                    ans -= piece_vals[c]
+                    tot += piece_vals[c]
         v = ans/tot
-        if not absolute and is_black_turn(fen):
-            v = -v
-        assert abs(v) < 1
+        #assert abs(v) < 1
         return np.tanh(v * 3) # arbitrary
 
 label_actions = ChessBoard.create_action_labels()

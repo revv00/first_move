@@ -31,11 +31,13 @@ class ModelConfig:
         self.cnn_filter_num = yaml_config.get('cnn_filter_num', 256)
         self.cnn_first_filter_size = yaml_config.get('cnn_first_filter_size', 5)
         self.cnn_filter_size = yaml_config.get('cnn_filter_size', 3)
-        self.res_layer_num = yaml_config.get('res_layer_num', 7)
+        self.res_layer_num = yaml_config.get('res_layer_num', 5)#
         self.l2_reg = yaml_config.get('l2_reg', 1e-4)
         self.value_fc_size = yaml_config.get('value_fc_size', 256)
         self.distributed = yaml_config.get('distributed', False)
         self.input_depth = yaml_config.get('input_depth', 18)
+        self.board_width = yaml_config.get('board_width', 9)
+        self.board_height = yaml_config.get('board_height', 10)
 
 class ServiceConfig:
     def __init__(self, yaml_config):

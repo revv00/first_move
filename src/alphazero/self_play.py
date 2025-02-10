@@ -12,9 +12,9 @@ class EndType(Enum):
     LOOP = 2
     NONE_ATTACKER = 3
 
-def adjudicate(history, board):
+def adjudicate_for_red(history, board):
     if board.is_end():
-        if board.turn == RED:
+        if board.winner == RED:
             return True, EndType.WIN_LOSE, 1.0
         else:
             return True, EndType.WIN_LOSE, -1.0
@@ -47,12 +47,14 @@ def play_a_game(config):
         board.move_action_str(action)
         value = 0
         if board.steps/2 > config.max_game_length:
-            value = ChessBoard.adjudicate_by_pieces(board)
+            value = ChessBoard.adjudicate_by_pieces_for_red(board)
             break
         else:
-            is_end, end_type, value = adjudicate(mcts._history, board)
+            is_end, _, value = adjudicate_for_red(mcts._history, board)
             if is_end:
                 break
+    # Update history for training, note the board should be then flipped for red because the policy is for red
+    mcts.update_history_with_red_value(value)
 
 
 if __name__ == '__main__':

@@ -62,8 +62,10 @@ class MCTS:
             # noinspection PyTypeChecker
             return None
         else:
+            # NOTE: policy is for as if it is red, so we need to flip the board when training
             self._history.append([copy.deepcopy(board.board), board.turn, list(policy)])
-            return chessboard.label_actions[my_action]
+            return chessboard.label_actions[my_action] if player == RED \
+                else ChessBoard.flip_move(chessboard.label_actions[my_action])
 
 
     def action_selection_as_is_red(self, state, is_root=False):
@@ -207,3 +209,7 @@ class MCTS:
             ret = np.power(policy, 1/tau)
             ret /= np.sum(ret)
             return ret
+
+    def update_history_with_red_value(self, red_value):
+        for i in range(len(self._history)):
+            self._history[i] += [red_value]

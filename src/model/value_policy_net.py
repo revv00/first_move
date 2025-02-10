@@ -4,8 +4,7 @@ import torch.nn.functional as F
 from torchvision.models.resnet import BasicBlock
 
 from logging import getLogger
-from config import config
-from env.chessboard import Chessboard, action_labels
+from env.chessboard import action_labels
 
 logger = getLogger(__name__)
 
