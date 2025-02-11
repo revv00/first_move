@@ -18,12 +18,22 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Shamelessly copied from https://github.com/NeymarL/ChineseChess-AlphaZero
 import hashlib
-
+import logging
 from .common import *
 from enum import Enum
 import numpy as np
 from colorama import Fore, Back, Style, init
-init(autoreset=True)
+init(strip=False, autoreset=True) # strip for dumping control characters
+
+# Create a specific logger for this function
+logger = logging.getLogger('board_logger')
+
+# Set up a custom logger for this function (will not affect the global logger)
+logger.setLevel(logging.INFO)
+# Create a StreamHandler to output to the console
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(message)s'))
+logger.addHandler(handler)
 
 Winner = Enum("Winner", "red black draw")
 
@@ -111,37 +121,7 @@ class ChessBoard:
         return plane
 
     def FENboard(self):
-        """
-        Red side is on the bottom half, black side is on the top half, except when flipped
-        """
-        def swapcase(a):
-            if a.isalpha():
-                a = replace_dict[a]
-                return a.lower() if a.isupper() else a.upper()
-            return a
-
-        c = 0
-        fen = ''
-        for i in range(self.height - 1, -1, -1):
-            c = 0
-            for j in range(self.width):
-                if self.board[i][j] == '.':
-                    c = c + 1
-                else:
-                    if c > 0:
-                        fen = fen + str(c)
-                    fen = fen + swapcase(self.board[i][j])
-                    c = 0
-            if c > 0:
-                fen = fen + str(c)
-            if i > 0:
-                fen = fen + '/'
-        if self.turn is RED:
-            fen += ' r'
-        else:
-            fen += ' b'
-        fen += ' - - 0 1'
-        return fen
+        return ChessBoard.sFENboard(self.board, self.turn)
 
     def fliped_FENboard(self):
         fen = self.FENboard()
@@ -455,6 +435,57 @@ class ChessBoard:
     """
     static part
     """
+    def sFENboard(brd, turn):
+        """
+        Red side is on the bottom half, black side is on the top half, except when flipped
+        """
+        def swapcase(a):
+            if a.isalpha():
+                a = replace_dict[a]
+                return a.lower() if a.isupper() else a.upper()
+            return a
+
+        c = 0
+        fen = ''
+        height = len(brd)
+        width = len(brd[0])
+        for i in range(height - 1, -1, -1):
+            c = 0
+            for j in range(width):
+                if brd[i][j] == '.':
+                    c = c + 1
+                else:
+                    if c > 0:
+                        fen = fen + str(c)
+                    fen = fen + swapcase(brd[i][j])
+                    c = 0
+            if c > 0:
+                fen = fen + str(c)
+            if i > 0:
+                fen = fen + '/'
+        if turn is RED:
+            fen += ' r'
+        else:
+            fen += ' b'
+        fen += ' - - 0 1'
+        return fen
+
+    def sfliped_FENboard(brd, turn):
+        fen = ChessBoard.sFENboard(brd, turn)
+        foo = fen.split(' ')
+        rows = foo[0].split('/')
+        def swapcase(a):
+            if a.isalpha():
+                return a.lower() if a.isupper() else a.upper()
+            return a
+        def swapall(aa):
+            return "".join([swapcase(a) for a in aa])
+
+        return "/".join([swapall(reversed(row)) for row in reversed(rows)]) \
+            + " " + foo[1] \
+            + " " + foo[2] \
+            + " " + foo[3] + " " + foo[4] + " " + foo[5]
+
     def create_action_labels():
         labels_array = []   # [col_src,row_src,col_dst,row_dst]
         numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'] # row
@@ -541,7 +572,7 @@ class ChessBoard:
         else:
             return ChessBoard.flip_move(x)
 
-    def print_board_impl(board, move_from=None, move_to=None):
+    def print_board_impl(board, move_from=None, move_to=None, indent="    "):
         """
         Print the Chinese Chess board in ASCII with colors.
         :param board: The current board state.
@@ -549,8 +580,8 @@ class ChessBoard:
         :param move_to: The destination position (row, col) of the move.
         """
         # Define the board layout with borders and labels
-        print("    a    b    c    d    e    f    g    h    i")
-        print(" +----+----+----+----+----+----+----+----+----+")
+        logger.info(indent + "    a    b    c    d    e    f    g    h    i")
+        logger.info(indent + " +----+----+----+----+----+----+----+----+----+")
         
         for i in range(10):
             i_ = 9 - i
@@ -571,10 +602,10 @@ class ChessBoard:
                         row += f" {Fore.RED}{piece1}{Style.RESET_ALL} |"
                     else:  # Empty spaces
                         row += f" {piece1} |"
-            print(row)
-            print(" +----+----+----+----+----+----+----+----+----+")
+            logger.info(indent + row)
+            logger.info(indent + " +----+----+----+----+----+----+----+----+----+")
         
-        print("    a    b    c    d    e    f    g    h    i")
+        logger.info(indent + "    a    b    c    d    e    f    g    h    i")
 
     def initialize_board():
         """
@@ -615,11 +646,11 @@ class ChessBoard:
         
         return move_from, move_to
     
-    def print_board(prev_board, cur_board):
+    def print_board(prev_board, cur_board, indent="    "):
         move_from, move_to = None, None
         if prev_board is not None:
             move_from, move_to = ChessBoard.infer_move(prev_board, cur_board)
-        ChessBoard.print_board_impl(cur_board, move_from, move_to)
+        ChessBoard.print_board_impl(cur_board, move_from, move_to, indent=indent)
 
     def parse_visualization(visualization):
         """

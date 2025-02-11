@@ -10,11 +10,14 @@ from collections import defaultdict
 from threading import Lock
 from env.common import *
 from env import chessboard
-from env.chessboard import ChessBoard, action_labels, Winner
-from model.client import ModelClient
+from env.chessboard import ChessBoard, action_labels
+# from model.client import ModelClient
 
-logging.basicConfig(level=logging.DEBUG, format='%(thread)d - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(thread)d - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 class StateStats:
     def __init__(self):
@@ -54,7 +57,7 @@ class MCTS:
             futures = [executor.submit(self.mcts_srch_once, copy.deepcopy(board), player) for _ in range(self._config.mcts_sims)]
             vals = [future.result()[1] for future in futures]
         policy = self.solve_policy(board)
-        my_action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy, board.steps/2)))
+        my_action = int(np.random.choice(range(len(action_labels)), p = self.apply_temperature(policy, board.steps/2)))
         root_value = max(vals)
         if can_stop and self._config.resign_threshold is not None and \
                         root_value <= self._config.resign_threshold \
@@ -145,8 +148,8 @@ class MCTS:
                     logger.debug(f"Find unk state {ChessBoard.hash_board(board.board)}, {stats._as}, {v}")
                 return level, stats.v
             # Explore and Exploit
-            best_move_idx, _ = self.action_selection_as_is_red(state, level==0)
-            if best_move_idx == -1:
+            best_move_label, _ = self.action_selection_as_is_red(state, level==0)
+            if best_move_label == -1:
                 # no longer up propagate
                 return level, self._tree[state].v
             
@@ -156,7 +159,7 @@ class MCTS:
                 stats.v = 0.0
                 stats.ps = None
             else: 
-                as_ = stats._as[best_move_idx]
+                as_ = stats._as[best_move_label]
                 stats.sum_n += vl
                 as_.n += vl
                 as_.w -= vl
@@ -165,7 +168,7 @@ class MCTS:
         v = 0
         depth = level
         if not (stats.v == 0.0 and stats.ps is None):
-            mv = ChessBoard.orig_move(chessboard.label_actions[best_move_idx], player)
+            mv = ChessBoard.orig_move(chessboard.label_actions[best_move_label], player)
             with self._print_lock:
                 logger.debug(f"L{level} Action select for {player}: {mv}")
             # NOTE: for debug TODO: remove 
@@ -188,11 +191,11 @@ class MCTS:
         return depth, v
 
     def solve_policy(self, board):
-        state = board.FENboard(board.turn) if board.turn is RED else board.fliped_FENboard()
+        state = board.FENboard() if board.turn is RED else board.fliped_FENboard()
         ss = self._tree[state]
         policy = np.zeros(len(action_labels))
-        for move, as_ in ss._as.items():
-            policy[action_labels[move]] = as_.n
+        for move_label, as_ in ss._as.items():
+            policy[move_label] = as_.n
         policy /= np.sum(policy)
         return policy
     

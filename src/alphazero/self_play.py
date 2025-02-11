@@ -2,7 +2,7 @@ from collections import deque, defaultdict
 from concurrent.futures import ProcessPoolExecutor
 from enum import Enum
 from config import config
-from mcts import MCTS
+from .mcts import MCTS
 from env.chessboard import ChessBoard
 from env.common import RED, BLACK
 from config import config
@@ -25,8 +25,9 @@ def adjudicate_for_red(history, board):
         # if loop
         free_move = defaultdict(int)
         for brd, turn, policy in history[:-1]:
-            free_move[brd] += 1
-            if free_move[brd] >= 3:
+            k = ChessBoard.sFENboard(brd, turn) if turn == RED else ChessBoard.sfliped_FENboard(brd, turn)
+            free_move[k] += 1
+            if free_move[k] >= 3:
                 return True, EndType.LOOP, 0.0
         return False, None, 0.0
 
@@ -41,12 +42,13 @@ def play_a_game(config):
 
         # Perform MCTS simulation
         action = mcts.mcts_srch(board, player)
-        if player == BLACK:
-            action = ChessBoard.flip_move(action)
+
         # Perform the action on the board
         board.move_action_str(action)
+        print(f"Turns: {board.steps}, Player: {player}, Action: {action}")
+        ChessBoard.print_board(None, board.board, indent='')
         value = 0
-        if board.steps/2 > config.max_game_length:
+        if board.steps/2 > config.self_play.max_game_length:
             value = ChessBoard.adjudicate_by_pieces_for_red(board)
             break
         else:

@@ -23,8 +23,11 @@ class SelfPlayConfig:
         self.virtual_loss = 3.0
         # make sure win_reward is greater than other reward/loss
         self.win_reward = 5.0
-        self.resigned_threshold = 0.8
+        #self.resigned_threshold = 0.8
         self.min_resigned_turn = 5
+        self.tau_decay_rate = 0.99
+        self.resign_threshold = -0.8
+        self.max_game_length = 500
 
 class ModelConfig:
     def __init__(self, yaml_config):
