@@ -2,7 +2,7 @@ import sys
 import unittest
 import copy
 from env.chessboard import ChessBoard
-from env.common import RED
+from env.common import RED, BLACK
 from alphazero.mcts import MCTS
 from config import config
 from concurrent.futures import ThreadPoolExecutor
@@ -43,7 +43,7 @@ Average depth: {sum(depths)/len(depths)}
             depths.append(d)
         self.print_stats(mcst, depths)
 
-    @unittest.skipIf(False, "skip this test")
+    @unittest.skipIf(True, "skip this test")
     def test_read_and_mcst_multithread(self):
         data_root = 'data/vboards/soldier_king1.txt'
         print("Test read board from file")
@@ -57,6 +57,33 @@ Average depth: {sum(depths)/len(depths)}
             depths = [future.result()[0] for future in futures]
         self.print_stats(mcst, depths)
 
+    @unittest.skipIf(False, "skip this test")
+    def test_read_and_mcst_multithread1(self):
+        data_root = 'data/vboards/check_or_not.txt'
+        print("Test read board from file")
+        board = ChessBoard.read_visualization_from_file(data_root)
+        cb = ChessBoard()
+        cb.assign_board(board, turn=BLACK)#RED
+        
+        mcst = MCTS(config.self_play)
+        with ThreadPoolExecutor(max_workers=50) as executor:
+            futures = [executor.submit(mcst.mcts_srch_once, copy.deepcopy(cb)) for _ in range(2000)]
+            depths = [future.result()[0] for future in futures]
+        self.print_stats(mcst, depths)
+
+    @unittest.skipIf(False, "skip this test")
+    def test_read_and_mcst_multithread2(self):
+        data_root = 'data/vboards/check_or_not.txt'
+        print("Test read board from file")
+        board = ChessBoard.read_visualization_from_file(data_root)
+        cb = ChessBoard()
+        cb.assign_board(board, turn=RED)#RED
+        
+        mcst = MCTS(config.self_play)
+        with ThreadPoolExecutor(max_workers=50) as executor:
+            futures = [executor.submit(mcst.mcts_srch_once, copy.deepcopy(cb)) for _ in range(2000)]
+            depths = [future.result()[0] for future in futures]
+        self.print_stats(mcst, depths)
 
 if __name__ == '__main__':
     sys.setrecursionlimit(5000)

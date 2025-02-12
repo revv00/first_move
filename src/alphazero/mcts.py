@@ -11,6 +11,7 @@ from threading import Lock
 from env.common import *
 from env import chessboard
 from env.chessboard import ChessBoard, action_labels
+import pandas as pd
 # from model.client import ModelClient
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter('%(thread)d - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.ERROR)
 
 class StateStats:
     def __init__(self):
@@ -50,11 +52,12 @@ class MCTS:
         #for _ in range(self._config.num_clients):
         #    self._client_queue.put(ModelClient())
 
-    def mcts_srch(self, board, player, can_stop=True):
+    def mcts_srch(self, board, can_stop=True):
         # reset for every actual move
         self._tree = defaultdict(StateStats)
+        player = board.turn
         with ThreadPoolExecutor(max_workers=self._config.mcts_sims) as executor:
-            futures = [executor.submit(self.mcts_srch_once, copy.deepcopy(board), player) for _ in range(self._config.mcts_sims)]
+            futures = [executor.submit(self.mcts_srch_once, copy.deepcopy(board)) for _ in range(self._config.mcts_sims)]
             vals = [future.result()[1] for future in futures]
         policy = self.solve_policy(board)
         my_action = int(np.random.choice(range(len(action_labels)), p = self.apply_temperature(policy, board.steps/2)))
@@ -120,10 +123,11 @@ class MCTS:
         return p, v
         """
 
-    def mcts_srch_once(self, board, player, level=0):
+    def mcts_srch_once(self, board, level=0):
         """
         Evaluate as if it's red, Store statistics as if it's red, But move as what it really is.
         """
+        player = board.turn
         state = board.FENboard() if player is RED else board.fliped_FENboard()
         vl = self._config.virtual_loss
         with self._locks[state]:
@@ -177,7 +181,7 @@ class MCTS:
             with self._print_lock:
                 logger.debug(f"L{level} Move after action select: {mv}")
                 ChessBoard.print_board(None, board.board)
-            depth, v = self.mcts_srch_once(board, board.turn, level+1)
+            depth, v = self.mcts_srch_once(board, level+1)
             v = -v
 
             # Up propagate the stats
@@ -216,3 +220,10 @@ class MCTS:
     def update_history_with_red_value(self, red_value):
         for i in range(len(self._history)):
             self._history[i] += [red_value]
+    
+    def save_history(self):
+        df = pd.DataFrame(self._history, columns=['board', 'turn', 'policy', 'value'])
+        timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'./data/train/game_history_{timestamp}.parquet'
+        df.to_parquet(filename, engine='pyarrow')
+        self._history = []  # Clear history after saving

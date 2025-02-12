@@ -30,6 +30,7 @@ logger = logging.getLogger('board_logger')
 
 # Set up a custom logger for this function (will not affect the global logger)
 logger.setLevel(logging.INFO)
+logger.setLevel(logging.ERROR)
 # Create a StreamHandler to output to the console
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter('%(message)s'))
