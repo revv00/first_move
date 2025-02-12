@@ -103,23 +103,7 @@ class ChessBoard:
                 x = x + 1
 
     def get_plane(self):
-        # wxh 9x10 board to 14x9x10 one hot encoding, where 14 means types of chess item
-        plane = np.zeros((14, self.height, self.width), dtype=np.float32)
-        if self.is_red_turn:
-            for y in range(self.height):
-                for x in range(self.width):
-                    piece = self.board[y][x]
-                    if piece != '.':
-                        plane[piece_to_plane[piece]][y][x] = 1
-        else:
-            # pretend to be red
-            for y in range(self.height):
-                for x in range(self.width):
-                    piece = self.board[self.height - y - 1][self.width - x - 1]
-                    if piece != '.':
-                        piece = self.swapcase(piece)
-                        plane[piece_to_plane[piece]][y][x] = 1
-        return plane
+        return ChessBoard.s_get_plane(self.board, self.turn)
 
     def FENboard(self):
         return ChessBoard.sFENboard(self.board, self.turn)
@@ -420,7 +404,7 @@ class ChessBoard:
                 row = first_row
         return row, column
 
-    def swapcase(self, a):
+    def swapcase(a):
         if a.isalpha():
             return a.lower() if a.isupper() else a.upper()
         return a
@@ -486,6 +470,26 @@ class ChessBoard:
             + " " + foo[1] \
             + " " + foo[2] \
             + " " + foo[3] + " " + foo[4] + " " + foo[5]
+
+    def s_get_plane(brd, turn):
+        height = len(brd)
+        width = len(brd[0])
+        plane = np.zeros((14, height, width), dtype=np.float32)
+        if turn == RED:
+            for y in range(height):
+                for x in range(width):
+                    piece = brd[y][x]
+                    if piece != '.':
+                        plane[piece_to_plane[piece]][y][x] = 1
+        else:
+            # pretend to be red
+            for y in range(height):
+                for x in range(width):
+                    piece = brd[height - y - 1][width - x - 1]
+                    if piece != '.':
+                        piece = ChessBoard.swapcase(piece)
+                        plane[piece_to_plane[piece]][y][x] = 1
+        return plane
 
     def create_action_labels():
         labels_array = []   # [col_src,row_src,col_dst,row_dst]

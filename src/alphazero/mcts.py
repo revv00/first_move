@@ -221,9 +221,9 @@ class MCTS:
         for i in range(len(self._history)):
             self._history[i] += [red_value]
     
-    def save_history(self):
+    def save_history(self, iteration, task_id):
         df = pd.DataFrame(self._history, columns=['board', 'turn', 'policy', 'value'])
         timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'./data/train/game_history_{timestamp}.parquet'
+        filename = f'./data/train/iter_{iteration}/{task_id}_{timestamp}.parquet'
         df.to_parquet(filename, engine='pyarrow')
         self._history = []  # Clear history after saving

@@ -12,7 +12,7 @@ service_yaml_config = load_config_from_yaml('./config/service.yaml')
 
 class SelfPlayConfig:
     def __init__(self):
-        self.game_num = 500
+        self.game_num = 100
         #self.mcts_sims = 800
         self.mcts_sims = 1000
         self.max_depth = 200
@@ -36,6 +36,10 @@ class ModelConfig:
         self.cnn_filter_size = yaml_config.get('cnn_filter_size', 3)
         self.res_layer_num = yaml_config.get('res_layer_num', 5)#
         self.l2_reg = yaml_config.get('l2_reg', 1e-4)
+        self.learning_rate = yaml_config.get('learing_rate', 1e-4)
+        self.batch_size = yaml_config.get('batch_size', 128)
+        self.epochs = yaml_config.get('epochs', 10)
+        self.log_interval = yaml_config.get('log_interval', 100)
         self.value_fc_size = yaml_config.get('value_fc_size', 256)
         self.distributed = yaml_config.get('distributed', False)
         self.input_depth = yaml_config.get('input_depth', 18)

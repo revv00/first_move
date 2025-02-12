@@ -1,4 +1,4 @@
-import os
+import os, sys
 from collections import deque, defaultdict
 from concurrent.futures import ProcessPoolExecutor
 from enum import Enum
@@ -32,7 +32,7 @@ def adjudicate_for_red(history, board):
                 return True, EndType.LOOP, 0.0
         return False, None, 0.0
 
-def play_a_game(config):
+def play_a_game(config, iteration=0, task_id=0):
     # Chess environment with current side to move
     board = ChessBoard()
     mcts = MCTS(config.self_play)
@@ -58,16 +58,17 @@ def play_a_game(config):
                 break
     # Update history for training, NOTE: the board should be then flipped for red because the policy is for red
     mcts.update_history_with_red_value(value)
-    mcts.save_history()
+    mcts.save_history(iteration, task_id)
 
 
 if __name__ == '__main__':
     futures = deque()
+    iteration = 0 if len(sys.argv) < 2 else int(sys.argv[1])
     tasks = config.self_play.game_num
     parallel = os.cpu_count()
     with ProcessPoolExecutor(max_workers=parallel) as executor:
-        for _ in range(tasks):
-            futures.append(executor.submit(play_a_game, config))
+        for i in range(tasks):
+            futures.append(executor.submit(play_a_game, config, iteration, i))
         for future in futures:
             result = future.result()
         

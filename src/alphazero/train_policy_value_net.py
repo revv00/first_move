@@ -72,13 +72,15 @@ def train(model, train_loader, optimizer, policy_loss_fn, value_loss_fn, epochs,
 # Run the training
 train(model, train_loader, optimizer, policy_loss_fn, value_loss_fn, epochs=config.epochs)
 """
+import sys
 import torch
+import logging
+import time
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from pathlib import Path
-import logging
-import time
+from env.chessboard import ChessBoard
 
 def setup_logging():
     logging.basicConfig(
@@ -153,7 +155,6 @@ def train_model(config, model, dataset):
             
             optimizer.zero_grad()
             policy_pred, value_pred = model(data)
-            
             policy_loss = policy_loss_fn(policy_pred, policy_target)
             value_loss = value_loss_fn(value_pred, value_target)
             loss = policy_loss + value_loss
@@ -210,12 +211,49 @@ def train_model(config, model, dataset):
     logger.info("Training completed")
     return model
 
+class ChessDataset(torch.utils.data.Dataset):
+    def __init__(self, iteration=0, data_root='./data/train'):
+        data_path = data_root + f'/iter_{iteration}'
+        self.game_states = []
+        self.policy_labels = []
+        self.value_labels = []
+        # Load data from game_data_path and populate the lists
+        # Read data from Parquet files
+        data_path = Path(data_path)
+        if not data_path.exists():
+            raise FileNotFoundError(f"Data directory {data_path} not found")
+
+        def solve_plane(board, player):
+            return ChessBoard.s_get_plane(board, player)
+
+        for parquet_file in data_path.glob('*.parquet'):
+            df = pd.read_parquet(parquet_file)
+            df['plane'] = df.apply(lambda x: solve_plane(x['board'], x['turn']), axis=1)
+            self.game_states.extend(df['plane'].tolist())
+            self.policy_labels.extend(df['policy'].tolist())
+            self.value_labels.extend(df['value'].tolist())
+
+        self.game_states = np.array(self.game_states)
+        self.policy_labels = np.array(self.policy_labels)
+        self.value_labels = np.array(self.value_labels)
+        
+    def __len__(self):
+        return len(self.game_states)
+        
+    def __getitem__(self, idx):
+        game_state = torch.FloatTensor(self.game_states[idx])
+        policy = torch.FloatTensor(self.policy_labels[idx])
+        value = torch.FloatTensor([self.value_labels[idx]])
+        return game_state, policy, value
+
 # Usage example:
 if __name__ == "__main__":
-    from your_model_file import ValuePolicyNet
-    from your_dataset_file import ChessDataset
+    from model.value_policy_net import ValuePolicyNet
     from config import config
-    
-    model = ValuePolicyNet(config)
-    dataset = ChessDataset(...)  # Initialize your dataset
-    trained_model = train_model(config, model, dataset)
+    import pandas as pd
+    import numpy as np
+    iter = sys.argv[1] if len(sys.argv) > 1 else 0
+    model = ValuePolicyNet(config.model)
+    dataset = ChessDataset(iteration=0)  # Initialize your dataset
+
+    trained_model = train_model(config.model, model, dataset)
