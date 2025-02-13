@@ -226,4 +226,6 @@ class MCTS:
         timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
         filename = f'./data/train/iter_{iteration}/{task_id}_{timestamp}.parquet'
         df.to_parquet(filename, engine='pyarrow')
-        self._history = []  # Clear history after saving
+    
+    def clear_history(self):
+        self._history = []

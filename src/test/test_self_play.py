@@ -13,7 +13,17 @@ class TestSelfPlay(unittest.TestCase):
         pass
 
     def test_untrained_model(self):
-        play_a_game(config)
+        hist = play_a_game(config)
+        print("History:")
+        for brd, turn, policy, value in hist:
+            print(f"Turn: {turn}, Value: {value}")
+            if turn == RED:
+                ChessBoard.print_board(None, brd, indent='')
+            else:
+                ChessBoard.print_board(None, brd, indent='')
+                ChessBoard.print_board(
+                    None, ChessBoard.flip_board_and_players(brd), indent='    '
+                )
 
 if __name__ == '__main__':
     sys.setrecursionlimit(5000)

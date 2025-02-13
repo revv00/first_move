@@ -59,6 +59,7 @@ def play_a_game(config, iteration=0, task_id=0):
     # Update history for training, NOTE: the board should be then flipped for red because the policy is for red
     mcts.update_history_with_red_value(value)
     mcts.save_history(iteration, task_id)
+    return mcts._history
 
 
 if __name__ == '__main__':

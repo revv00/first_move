@@ -577,7 +577,7 @@ class ChessBoard:
         else:
             return ChessBoard.flip_move(x)
 
-    def print_board_impl(board, move_from=None, move_to=None, indent="    "):
+    def print_board_impl(board, move_from=None, move_to=None, indent="    ", level=logging.INFO):
         """
         Print the Chinese Chess board in ASCII with colors.
         :param board: The current board state.
@@ -585,8 +585,8 @@ class ChessBoard:
         :param move_to: The destination position (row, col) of the move.
         """
         # Define the board layout with borders and labels
-        logger.info(indent + "    a    b    c    d    e    f    g    h    i")
-        logger.info(indent + " +----+----+----+----+----+----+----+----+----+")
+        logger.log(level, indent + "    a    b    c    d    e    f    g    h    i")
+        logger.log(level, indent + " +----+----+----+----+----+----+----+----+----+")
         
         for i in range(10):
             i_ = 9 - i
@@ -607,10 +607,10 @@ class ChessBoard:
                         row += f" {Fore.RED}{piece1}{Style.RESET_ALL} |"
                     else:  # Empty spaces
                         row += f" {piece1} |"
-            logger.info(indent + row)
-            logger.info(indent + " +----+----+----+----+----+----+----+----+----+")
+            logger.log(level, indent + row)
+            logger.log(level, indent + " +----+----+----+----+----+----+----+----+----+")
         
-        logger.info(indent + "    a    b    c    d    e    f    g    h    i")
+        logger.log(level, indent + "    a    b    c    d    e    f    g    h    i")
 
     def initialize_board():
         """
@@ -651,11 +651,29 @@ class ChessBoard:
         
         return move_from, move_to
     
-    def print_board(prev_board, cur_board, indent="    "):
+    def print_board(prev_board, cur_board, indent="    ", level=logging.INFO):
         move_from, move_to = None, None
         if prev_board is not None:
             move_from, move_to = ChessBoard.infer_move(prev_board, cur_board)
-        ChessBoard.print_board_impl(cur_board, move_from, move_to, indent=indent)
+        ChessBoard.print_board_impl(cur_board, move_from, move_to, indent=indent, level=level)
+
+    def flip_board_and_players(board):
+        """
+        Flip the Chinese Chess board and the players.
+        """
+        # Flip the board and swap the players
+        # Create new board with flipped positions
+        flipped_board = [['.' for _ in range(9)] for _ in range(10)]
+        for i in range(10):
+            for j in range(9):
+                # Get piece at original position
+                piece = board[i][j]
+                if piece.isalpha():
+                    # Flip piece color (upper/lower case)
+                    piece = piece.lower() if piece.isupper() else piece.upper()
+                # Place piece in flipped position 
+                flipped_board[9-i][8-j] = piece
+        return flipped_board
 
     def parse_visualization(visualization):
         """
