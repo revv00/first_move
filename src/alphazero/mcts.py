@@ -219,7 +219,7 @@ class MCTS:
 
     def update_history_with_red_value(self, red_value):
         for i in range(len(self._history)):
-            self._history[i] += [red_value]
+            self._history[i] += [red_value if self._history[i][1] == RED else -red_value]
     
     def save_history(self, iteration, task_id):
         df = pd.DataFrame(self._history, columns=['board', 'turn', 'policy', 'value'])
