@@ -1,7 +1,8 @@
 import sys
 import unittest
 import copy
-from env.chessboard import ChessBoard
+import numpy as np
+from env.chessboard import ChessBoard, action_labels, label_actions
 from env.common import RED, BLACK
 from alphazero.mcts import MCTS
 from config import config
@@ -57,7 +58,7 @@ Average depth: {sum(depths)/len(depths)}
             depths = [future.result()[0] for future in futures]
         self.print_stats(mcst, depths)
 
-    @unittest.skipIf(False, "skip this test")
+    @unittest.skipIf(True, "skip this test")
     def test_read_and_mcst_multithread1(self):
         data_root = 'data/vboards/check_or_not.txt'
         print("Test read board from file")
@@ -73,17 +74,24 @@ Average depth: {sum(depths)/len(depths)}
 
     @unittest.skipIf(False, "skip this test")
     def test_read_and_mcst_multithread2(self):
-        data_root = 'data/vboards/check_or_not.txt'
+        # test it: for i in `seq 1 40`; do python test/test_mcst.py 2>&1 | grep -P "Action:|Wrong"; done
+        data_root = 'data/vboards/red_choice_strange.txt'
         print("Test read board from file")
         board = ChessBoard.read_visualization_from_file(data_root)
         cb = ChessBoard()
         cb.assign_board(board, turn=RED)#RED
-        
+        cb.steps = 18
         mcst = MCTS(config.self_play)
-        with ThreadPoolExecutor(max_workers=50) as executor:
+        with ThreadPoolExecutor(max_workers=1) as executor:
             futures = [executor.submit(mcst.mcts_srch_once, copy.deepcopy(cb)) for _ in range(2000)]
             depths = [future.result()[0] for future in futures]
         self.print_stats(mcst, depths)
+        policy = mcst.solve_policy(cb)
+        ps = mcst.apply_temperature(policy, cb.steps/2)
+        my_action = int(np.random.choice(range(len(action_labels)), p = ps))
+        print(f"Action: {label_actions[my_action]} P: {policy[my_action]} P after temperature: {ps[my_action]}")
+        print(f"Policy For Wrong Move: {policy[action_labels['2241']]} P after temperature: {ps[action_labels['2241']]}")
+        #print(mcst.mcts_srch(cb))
 
 if __name__ == '__main__':
     sys.setrecursionlimit(5000)

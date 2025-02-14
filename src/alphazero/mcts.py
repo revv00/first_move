@@ -18,8 +18,7 @@ logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter('%(thread)d - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
-logger.setLevel(logging.ERROR)
+logger.setLevel(os.getenv('CHESS_LOG_LEVEL', logging.ERROR))
 
 class StateStats:
     def __init__(self):
@@ -56,7 +55,7 @@ class MCTS:
         # reset for every actual move
         self._tree = defaultdict(StateStats)
         player = board.turn
-        with ThreadPoolExecutor(max_workers=self._config.mcts_sims) as executor:
+        with ThreadPoolExecutor(max_workers=self._config.rollout_parallelism) as executor:
             futures = [executor.submit(self.mcts_srch_once, copy.deepcopy(board)) for _ in range(self._config.mcts_sims)]
             vals = [future.result()[1] for future in futures]
         policy = self.solve_policy(board)
@@ -66,12 +65,12 @@ class MCTS:
                         root_value <= self._config.resign_threshold \
                         and board.steps/2 > self._config.min_resign_turn:
             # noinspection PyTypeChecker
-            return None
+            return None, None, None
         else:
             # NOTE: policy is for as if it is red, so we need to flip the board when training
             self._history.append([copy.deepcopy(board.board), board.turn, list(policy)])
             return chessboard.label_actions[my_action] if player == RED \
-                else ChessBoard.flip_move(chessboard.label_actions[my_action])
+                else ChessBoard.flip_move(chessboard.label_actions[my_action]), policy[my_action], board.steps/2
 
 
     def action_selection_as_is_red(self, state, is_root=False):
@@ -224,6 +223,8 @@ class MCTS:
     def save_history(self, iteration, task_id):
         df = pd.DataFrame(self._history, columns=['board', 'turn', 'policy', 'value'])
         timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+        if not os.path.exists(f'./data/train/iter_{iteration}'):
+            os.makedirs(f'./data/train/iter_{iteration}')
         filename = f'./data/train/iter_{iteration}/{task_id}_{timestamp}.parquet'
         df.to_parquet(filename, engine='pyarrow')
     

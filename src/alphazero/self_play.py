@@ -42,11 +42,11 @@ def play_a_game(config, iteration=0, task_id=0):
         player = board.turn
 
         # Perform MCTS simulation
-        action = mcts.mcts_srch(board, player)
+        action, p_a, steps = mcts.mcts_srch(board, player)
 
         # Perform the action on the board
         board.move_action_str(action)
-        print(f"Turns: {board.steps}, Player: {player}, Action: {action}")
+        print(f"Turns: {board.steps}, Player: {player}, Action: {action}, Steps: {steps}, Pa: {p_a}")
         ChessBoard.print_board(None, board.board, indent='')
         value = 0
         if board.steps/2 > config.self_play.max_game_length:

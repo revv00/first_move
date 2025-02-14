@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Shamelessly copied from https://github.com/NeymarL/ChineseChess-AlphaZero
+import os
 import hashlib
 import logging
 from .common import *
@@ -29,8 +30,7 @@ init(strip=False, autoreset=True) # strip for dumping control characters
 logger = logging.getLogger('board_logger')
 
 # Set up a custom logger for this function (will not affect the global logger)
-logger.setLevel(logging.INFO)
-logger.setLevel(logging.ERROR)
+logger.setLevel(os.getenv('CHESS_LOG_LEVEL', logging.ERROR))
 # Create a StreamHandler to output to the console
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter('%(message)s'))
@@ -643,10 +643,9 @@ class ChessBoard:
         for i in range(10):
             for j in range(9):
                 if board1[i][j] != board2[i][j]:
-                    print(board1[i][j], board2[i][j])
-                    if board1[i][j] != '·':  # Piece moved from here
+                    if board1[i][j] != '.' and board2[i][j] == '.':  # Piece moved from here
                         move_from = (i, j)
-                    if board2[i][j] != '·':  # Piece moved to here
+                    if board2[i][j] != '.':  # Piece moved to here (including captures)
                         move_to = (i, j)
         
         return move_from, move_to
@@ -655,6 +654,7 @@ class ChessBoard:
         move_from, move_to = None, None
         if prev_board is not None:
             move_from, move_to = ChessBoard.infer_move(prev_board, cur_board)
+            print(move_from, move_to)
         ChessBoard.print_board_impl(cur_board, move_from, move_to, indent=indent, level=level)
 
     def flip_board_and_players(board):
