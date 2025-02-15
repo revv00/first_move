@@ -1,3 +1,4 @@
+import logging
 import sys
 import unittest
 import copy
@@ -72,10 +73,11 @@ Average depth: {sum(depths)/len(depths)}
             depths = [future.result()[0] for future in futures]
         self.print_stats(mcst, depths)
 
-    @unittest.skipIf(False, "skip this test")
+    @unittest.skipIf(True, "skip this test")
     def test_read_and_mcst_multithread2(self):
         # test it: for i in `seq 1 40`; do python test/test_mcst.py 2>&1 | grep -P "Action:|Wrong"; done
-        data_root = 'data/vboards/red_choice_strange.txt'
+        data_root = 'data/vboards/red_choice_strange1.txt'
+        WRONG_ACTION='6042'
         print("Test read board from file")
         board = ChessBoard.read_visualization_from_file(data_root)
         cb = ChessBoard()
@@ -90,8 +92,50 @@ Average depth: {sum(depths)/len(depths)}
         ps = mcst.apply_temperature(policy, cb.steps/2)
         my_action = int(np.random.choice(range(len(action_labels)), p = ps))
         print(f"Action: {label_actions[my_action]} P: {policy[my_action]} P after temperature: {ps[my_action]}")
-        print(f"Policy For Wrong Move: {policy[action_labels['2241']]} P after temperature: {ps[action_labels['2241']]}")
+        print(f"Policy For Wrong Move: {policy[action_labels[WRONG_ACTION]]} P after temperature: {ps[action_labels[WRONG_ACTION]]}")
         #print(mcst.mcts_srch(cb))
+
+    @unittest.skipIf(True, "skip this test")
+    def test_symmetric_red(self):
+        # test it: for i in `seq 1 40`; do python test/test_mcst.py 2>&1 | grep -P "Action:|Wrong"; done
+        data_root = 'data/vboards/red_choice_strange1.txt'
+        WRONG_ACTION='6042'
+        print("Test read board from file")
+        board = ChessBoard.read_visualization_from_file(data_root)
+        cb = ChessBoard()
+        cb.assign_board(board, turn=RED)#RED
+        cb.steps = 18
+        ChessBoard.print_board(None, cb.board, level=logging.ERROR)
+        self.one_step(cb, WRONG_ACTION)
+
+    @unittest.skipIf(False, "skip this test")
+    def test_symmetric_black(self):
+        # test it: for i in `seq 1 40`; do python test/test_mcst.py 2>&1 | grep -P "Action:|Wrong"; done
+        data_root = 'data/vboards/red_choice_strange1.txt'
+        WRONG_ACTION='6042'#'2947'
+        print(f"Test read board from file and {ChessBoard.flip_move(WRONG_ACTION)}")
+        board = ChessBoard.read_visualization_from_file(data_root)
+        cb = ChessBoard()
+        cb.assign_board(board, turn=RED)#RED
+        cb.board = ChessBoard.flip_board_and_players(cb.board)
+        cb.turn = BLACK
+        cb.steps = 18
+        ChessBoard.print_board(None, cb.board, level=logging.ERROR)
+        self.one_step(cb, WRONG_ACTION)
+
+
+    def one_step(self, cb, WRONG_ACTION):
+        mcst = MCTS(config.self_play)
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            futures = [executor.submit(mcst.mcts_srch_once, copy.deepcopy(cb)) for _ in range(2000)]
+            depths = [future.result()[0] for future in futures]
+        self.print_stats(mcst, depths)
+        policy = mcst.solve_policy(cb)
+        ps = mcst.apply_temperature(policy, cb.steps/2)
+        my_action = int(np.random.choice(range(len(action_labels)), p = ps))
+        print(f"BAD: {label_actions[my_action] == WRONG_ACTION}")
+        print(f"Action: {label_actions[my_action]} P: {policy[my_action]} P after temperature: {ps[my_action]}")
+        print(f"Policy For Wrong Move: {policy[action_labels[WRONG_ACTION]]} P after temperature: {ps[action_labels[WRONG_ACTION]]}")
 
 if __name__ == '__main__':
     sys.setrecursionlimit(5000)

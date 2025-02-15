@@ -21,10 +21,13 @@ class TestSelfPlay(unittest.TestCase):
                 ChessBoard.print_board(last_brd, brd, indent='', level=logging.ERROR)
             else:
                 ChessBoard.print_board(last_brd, brd, indent='', level=logging.ERROR)
+                """
                 ChessBoard.print_board(
                     ChessBoard.flip_board_and_players(last_brd),
                     ChessBoard.flip_board_and_players(brd), indent='    ', level=logging.ERROR
                 )
+                """
+                
             last_brd = brd
 
 if __name__ == '__main__':

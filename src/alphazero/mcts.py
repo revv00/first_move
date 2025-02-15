@@ -88,6 +88,7 @@ class MCTS:
         for i, (move, stat) in enumerate(ss._as.items()):
             p = stat.p if not is_root else (1 - e) * stat.p + e * noise[i]
             v = stat.q + w_p * p * sqrt_num / (1 + stat.n)
+            # NOTE: if the good move is in the front of the list, it will be very probable to be replaced 
             if v == best_v:
                 if random.random() < 0.5:
                     best_v = v
@@ -139,7 +140,9 @@ class MCTS:
                     p_all = 0
                     legal_mvs = []
                     if ps is not None:
-                        for m in board.legal_moves():
+                        with self._print_lock:
+                            logger.info(f"{board.turn} {level} {ChessBoard.hash_fen_code(state)} {len(board.legal_moves())}")
+                        for m in random.sample(board.legal_moves(), len(board.legal_moves())):
                             m = ChessBoard.flip_move(m) if board.turn == BLACK else m
                             p_all += ps[action_labels[m]]
                             legal_mvs.append(action_labels[m])
@@ -191,13 +194,17 @@ class MCTS:
                 as_.q = as_.w/as_.n
             with self._print_lock:
                 logger.debug(f"L{level} player:{player},  board_before_mv:{ChessBoard.hash_board(bef_board)}, mv:{mv} n:{as_.n} W:{as_.w}, Q:{as_.q}")
+        else:
+            print("searching too deep")
         return depth, v
 
     def solve_policy(self, board):
         state = board.FENboard() if board.turn is RED else board.fliped_FENboard()
         ss = self._tree[state]
+        logger.info(f"state: {state} (hash: {ChessBoard.hash_fen_code(state)}) for {board.turn} and visit_num:{ss.sum_n}")
         policy = np.zeros(len(action_labels))
         for move_label, as_ in ss._as.items():
+            logger.info(f"as_red_mov: {chessboard.label_actions[move_label]} {as_.n} {as_.q}")
             policy[move_label] = as_.n
         policy /= np.sum(policy)
         return policy

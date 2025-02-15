@@ -63,7 +63,7 @@ class ChessBoard:
         self._fen = None
         self._legal_moves = None
         self.steps += 1
-        if self.steps % 2 == 0:
+        if self.turn == BLACK:
             self.turn = RED
         else:
             self.turn = BLACK
@@ -109,20 +109,7 @@ class ChessBoard:
         return ChessBoard.sFENboard(self.board, self.turn)
 
     def fliped_FENboard(self):
-        fen = self.FENboard()
-        foo = fen.split(' ')
-        rows = foo[0].split('/')
-        def swapcase(a):
-            if a.isalpha():
-                return a.lower() if a.isupper() else a.upper()
-            return a
-        def swapall(aa):
-            return "".join([swapcase(a) for a in aa])
-
-        return "/".join([swapall(reversed(row)) for row in reversed(rows)]) \
-            + " " + foo[1] \
-            + " " + foo[2] \
-            + " " + foo[3] + " " + foo[4] + " " + foo[5]
+        return ChessBoard.sfliped_FENboard(self.board, self.turn)
 
     @property
     def is_red_turn(self):
@@ -448,11 +435,13 @@ class ChessBoard:
                 fen = fen + str(c)
             if i > 0:
                 fen = fen + '/'
+        """
         if turn is RED:
             fen += ' r'
         else:
             fen += ' b'
         fen += ' - - 0 1'
+        """
         return fen
 
     def sfliped_FENboard(brd, turn):
@@ -466,10 +455,10 @@ class ChessBoard:
         def swapall(aa):
             return "".join([swapcase(a) for a in aa])
 
-        return "/".join([swapall(reversed(row)) for row in reversed(rows)]) \
-            + " " + foo[1] \
-            + " " + foo[2] \
-            + " " + foo[3] + " " + foo[4] + " " + foo[5]
+        return "/".join([swapall(reversed(row)) for row in reversed(rows)])
+            #+ " " + foo[1] \
+            #+ " " + foo[2] \
+            #+ " " + foo[3] + " " + foo[4] + " " + foo[5]
 
     def s_get_plane(brd, turn):
         height = len(brd)
@@ -612,10 +601,8 @@ class ChessBoard:
         
         logger.log(level, indent + "    a    b    c    d    e    f    g    h    i")
 
+    """
     def initialize_board():
-        """
-        Initialize the Chinese Chess board with starting positions.
-        """
         # Create a 10x9 grid (rows x columns)
         board = [['·' for _ in range(9)] for _ in range(10)]
         
@@ -630,6 +617,7 @@ class ChessBoard:
         board[6] = ['s', '·', 's', '·', 's', '·', 's', '·', 's']
         
         return board
+    """
 
     def infer_move(board1, board2):
         """
@@ -710,6 +698,9 @@ class ChessBoard:
         s = ''.join([''.join(r) for r in raw_board])
         return int(hashlib.sha256(s.encode('utf-8')).hexdigest(), 16)%10000
     
+    def hash_fen_code(code):
+        return int(hashlib.sha256(code.encode('utf-8')).hexdigest(), 16)%10000
+    
     def adjudicate_by_pieces_for_red(board):
         piece_vals = {'N': 3, 'K': 14, 'R': 5, 'C': 3.25, 'E': 2, 'A':2, 'P': 1}
         ans = 0.0
@@ -736,9 +727,13 @@ action_labels = {move: i for move, i in zip(label_actions, range(len(label_actio
 
 if __name__ == '__main__': # test
     board = ChessBoard()
-    board.turn = BLACK
     board.move_action_str('0304')
     board.print_to_cl()
     print(board.FENboard())
     print(board.fliped_FENboard())
-    print(board.legal_moves())
+    print("B:", board.legal_moves())
+    board = ChessBoard()
+    board.move_action_str('0304')
+    board.board = ChessBoard.flip_board_and_players(board.board)
+    board.turn = RED
+    print("R:", board.legal_moves())

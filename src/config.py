@@ -15,7 +15,7 @@ class SelfPlayConfig:
         self.game_num = 100
         #self.mcts_sims = 800
         self.mcts_sims = 2000
-        self.rollout_parallelism = 1 # 2000
+        self.rollout_parallelism = 50 # 2000
         self.max_depth = 200
         self.num_clients = 50
         self.noise_eps = 0.5
