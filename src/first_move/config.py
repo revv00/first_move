@@ -1,14 +1,16 @@
 import yaml
 import munch
+import os
 
 def load_config_from_yaml(file_path):
     with open(file_path, 'r') as file:
         config = yaml.safe_load(file)
     return config
 
-config_path = './config/model.yaml'
+root_path = os.path.dirname(__file__)
+config_path = root_path + '/config/model.yaml'
 yaml_config = load_config_from_yaml(config_path)
-service_yaml_config = load_config_from_yaml('./config/service.yaml')
+service_yaml_config = load_config_from_yaml(root_path + '/config/service.yaml')
 
 class SelfPlayConfig:
     def __init__(self):
@@ -51,7 +53,7 @@ class ServiceConfig:
     def __init__(self, yaml_config):
         self.batch_size_serve = yaml_config.get('batch_size_serve', 256)
         self.batch_timeout = yaml_config.get('batch_timeout', 0.3)
-        
+
 config = munch.munchify(
     {
         'model': ModelConfig(yaml_config),

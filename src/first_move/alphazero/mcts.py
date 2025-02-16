@@ -5,13 +5,13 @@ import math
 import random
 import logging
 import numpy as np
+import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
 from threading import Lock
-from env.common import *
-from env import chessboard
-from env.chessboard import ChessBoard, action_labels
-import pandas as pd
+from ..env.common import *
+from ..env import chessboard
+from ..env.chessboard import ChessBoard, action_labels
 # from model.client import ModelClient
 
 logger = logging.getLogger(__name__)
@@ -195,7 +195,7 @@ class MCTS:
             with self._print_lock:
                 logger.debug(f"L{level} player:{player},  board_before_mv:{ChessBoard.hash_board(bef_board)}, mv:{mv} n:{as_.n} W:{as_.w}, Q:{as_.q}")
         else:
-            print("searching too deep")
+            logger.debug("searching too deep")
         return depth, v
 
     def solve_policy(self, board):
