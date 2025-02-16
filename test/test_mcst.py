@@ -27,8 +27,8 @@ no_zero: {len({k:v for k,v in state_distribution.items() if v > 0})}
 ge_10: {len({k:v for k,v in state_distribution.items() if v >= 10})}
 Average depth: {sum(depths)/len(depths)}
 ''')
-        for state, count in sorted(state_distribution.items(), key=lambda x: x[1], reverse=True):
-            print(f"Count: {count}")
+        #for state, count in sorted(state_distribution.items(), key=lambda x: x[1], reverse=True):
+        #    print(f"Count: {count}")
 
     @unittest.skipIf(False, "skip this test")
     def test_read_and_mcst_once(self):
@@ -37,6 +37,7 @@ Average depth: {sum(depths)/len(depths)}
         board = ChessBoard.read_visualization_from_file(data_root)
         cb = ChessBoard()
         cb.assign_board(board, turn=RED)
+        ChessBoard.print_board(None, cb.board, level=logging.ERROR)
         
         mcst = MCTS(config.self_play)
         # sequential calling srch_once

@@ -111,8 +111,13 @@ class MCTS:
             return None, v
         plane = board.get_plane()
         #dirichlet_distribution = np.random.dirichlet([1.0] * len(action_labels))
-        uniform_distribution = np.ones(len(action_labels)) / len(action_labels)
-        return uniform_distribution, random.choice([-0.1, 0, 0.1])
+        distribution = np.ones(len(action_labels)) / len(action_labels) \
+            if self._config.is_random_policy_uniform == 1 else \
+            np.random.multinomial(
+                len(action_labels),
+                np.ones(len(action_labels))/len(action_labels)
+            ) / len(action_labels)
+        return distribution, random.choice([-0.1, 0, 0.1])
         # As if it is red
         """
         model_client = self._client_queue.get()

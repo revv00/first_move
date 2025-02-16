@@ -22,7 +22,7 @@ class SelfPlayConfig:
         self.num_clients = 50
         self.noise_eps = 0.5
         self.dir_alpha = 0.1
-        self.wgt_p = 1.0
+        self.wgt_p = float(os.getenv("WGT_P", 1.0))
         self.virtual_loss = 3.0
         # make sure win_reward is greater than other reward/loss
         self.win_reward = 5.0
@@ -31,6 +31,7 @@ class SelfPlayConfig:
         self.tau_decay_rate = 0.99
         self.resign_threshold = -0.8
         self.max_game_length = 500
+        self.is_random_policy_uniform = int(os.getenv("RANDOM_MODE_UNIFORM",1))
 
 class ModelConfig:
     def __init__(self, yaml_config):
