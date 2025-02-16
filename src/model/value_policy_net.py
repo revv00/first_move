@@ -14,7 +14,7 @@ class ValuePolicyNet(nn.Module):
         self.n_labels = len(action_labels)
         mc = config
         
-        # Input layer,  # (batch, channels, height, width), input is B x 14 x 10 x 9
+        # Input layer,  # (batch, ONE_HOT_channels, height, width) = B x 14 x 10 x 9
         # C_in = 9, C_out=256?
         self.input_conv = nn.Conv2d(14, mc.cnn_filter_num,
                                     kernel_size=mc.cnn_first_filter_size, 

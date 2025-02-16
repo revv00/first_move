@@ -195,7 +195,7 @@ class MCTS:
             with self._print_lock:
                 logger.debug(f"L{level} player:{player},  board_before_mv:{ChessBoard.hash_board(bef_board)}, mv:{mv} n:{as_.n} W:{as_.w}, Q:{as_.q}")
         else:
-            print("searching too deep")
+            logger.debug("searching too deep")
         return depth, v
 
     def solve_policy(self, board):
