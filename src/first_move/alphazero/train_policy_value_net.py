@@ -254,6 +254,6 @@ if __name__ == "__main__":
     import numpy as np
     iter = sys.argv[1] if len(sys.argv) > 1 else 0
     model = ValuePolicyNet(config.model)
-    dataset = ChessDataset(iteration=0)  # Initialize your dataset
+    dataset = ChessDataset(iteration=iter)  # Initialize your dataset
 
     trained_model = train_model(config.model, model, dataset)

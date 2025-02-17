@@ -14,7 +14,7 @@ service_yaml_config = load_config_from_yaml(root_path + '/config/service.yaml')
 
 class SelfPlayConfig:
     def __init__(self):
-        self.game_num = 100
+        self.game_num = 1000
         #self.mcts_sims = 800
         self.mcts_sims = 2000
         self.rollout_parallelism = 50 # 2000

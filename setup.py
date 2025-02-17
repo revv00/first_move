@@ -1,11 +1,23 @@
+import os
 from setuptools import setup, find_packages
 
+# Helper function to get all files in a directory recursively
+def get_data_files(directory):
+    file_pairs = []
+    for root, _, files in os.walk(directory):
+        install_dir = os.path.join('first_move', root)  # Include package name in path
+        file_paths = [os.path.join(root, f) for f in files]
+        if file_paths:
+            file_pairs.append((install_dir, file_paths))
+    return file_pairs
+print(get_data_files('config'))
 setup(
     name="first_move",
     version="0.1",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     include_package_data=True,  # Include non-Python files
+    data_files=get_data_files('config') + get_data_files('data'),  
     description="Reproduce AlphaZero in Chinese Chess",
     author="revv",
     install_requires=[

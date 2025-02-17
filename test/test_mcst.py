@@ -86,6 +86,7 @@ Average depth: {sum(depths)/len(depths)}
         cb = ChessBoard()
         cb.assign_board(board, turn=RED)#RED
         cb.steps = 18
+        ChessBoard.print_board(None, cb.board, level=logging.ERROR)
         mcst = MCTS(config.self_play)
         with ThreadPoolExecutor(max_workers=1) as executor:
             futures = [executor.submit(mcst.mcts_srch_once, copy.deepcopy(cb)) for _ in range(2000)]

@@ -2,11 +2,10 @@ import os, sys
 from collections import deque, defaultdict
 from concurrent.futures import ProcessPoolExecutor
 from enum import Enum
-from config import config
+from ..config import config
 from .mcts import MCTS
-from env.chessboard import ChessBoard
-from env.common import RED, BLACK
-from config import config
+from ..env.chessboard import ChessBoard
+from ..env.common import RED, BLACK
 
 class EndType(Enum):
     WIN_LOSE = 1
@@ -46,7 +45,7 @@ def play_a_game(config, iteration=0, task_id=0):
 
         # Perform the action on the board
         board.move_action_str(action)
-        print(f"Turns: {board.steps}, Player: {player}, Action: {action}, Steps: {steps}, Pa: {p_a}")
+        #print(f"Turns: {board.steps}, Player: {player}, Action: {action}, Steps: {steps}, Pa: {p_a}")
         ChessBoard.print_board(None, board.board, indent='')
         value = 0
         if board.steps/2 > config.self_play.max_game_length:

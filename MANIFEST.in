@@ -1,2 +1,2 @@
-include config/*
-include data/vboards/*
+recursive-include config *.*
+recursive-include data *.*

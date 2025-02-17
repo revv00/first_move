@@ -220,7 +220,7 @@ class MCTS:
             tau = 0
         if tau == 0:
             action = np.argmax(policy)
-            ret = np.zeros(self.labels_n)
+            ret = np.zeros(len(policy))
             ret[action] = 1.0
             return ret
         else:
