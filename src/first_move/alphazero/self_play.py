@@ -37,11 +37,8 @@ def play_a_game(config, iteration=0, task_id=0):
     mcts = MCTS(config.self_play)
     # Take turns to play moves until the game ends, each move itself is a MCTS simulation
     while board.winner is None:
-        # Get the current player
-        player = board.turn
-
         # Perform MCTS simulation
-        action, p_a, steps = mcts.mcts_srch(board, player)
+        action, p_a, steps = mcts.mcts_srch(board)
 
         # Perform the action on the board
         board.move_action_str(action)

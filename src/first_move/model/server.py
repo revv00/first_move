@@ -1,3 +1,4 @@
+import sys
 import zmq
 import logging
 import threading
@@ -7,14 +8,15 @@ import numpy as np
 from threading import Thread, Lock
 from logging import getLogger
 from collections import defaultdict
-from value_policy_net import ValuePolicyNet
+from .value_policy_net import ValuePolicyNet
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = getLogger(__name__)
 
 class CChessModelAPI:
-    def __init__(self, config, agent_model):
+    def __init__(self, config, model_path):
         self.agent_model = ValuePolicyNet(config.model)  # CChessModel
+        self.agent_model.load_model(model_path)
         self.config = config.service
         self.done = False
         self.batch_size = self.config.batch_size_serve  # Batch size from config
@@ -147,9 +149,10 @@ class CChessModelAPI:
         self.batch_thread.join()
 
 if __name__ == '__main__':
-    from config import config
+    from ..config import config
     # Start the model API
-    model_api = CChessModelAPI(config, None)
+    mp = sys.argv[1] if len(sys.argv) > 1 else None
+    model_api = CChessModelAPI(config, model_path=mp)
     model_api.start()
     try:
         while True:

@@ -72,6 +72,7 @@ def train(model, train_loader, optimizer, policy_loss_fn, value_loss_fn, epochs,
 # Run the training
 train(model, train_loader, optimizer, policy_loss_fn, value_loss_fn, epochs=config.epochs)
 """
+import shutil
 import sys
 import torch
 import logging
@@ -80,7 +81,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from pathlib import Path
-from env.chessboard import ChessBoard
+from ..env.chessboard import ChessBoard
 
 def setup_logging():
     logging.basicConfig(
@@ -119,7 +120,7 @@ def validate(model, val_loader, policy_loss_fn, value_loss_fn, device):
     avg_value_loss = total_value_loss / len(val_loader)
     return avg_policy_loss, avg_value_loss
 
-def train_model(config, model, dataset):
+def train_model(config, model, dataset, iteration=0):
     setup_logging()
     logger = logging.getLogger(__name__)
     
@@ -157,7 +158,7 @@ def train_model(config, model, dataset):
             policy_pred, value_pred = model(data)
             policy_loss = policy_loss_fn(policy_pred, policy_target)
             value_loss = value_loss_fn(value_pred, value_target)
-            loss = policy_loss + value_loss
+            loss = config.wgt_policy * policy_loss + (1.0 - config.wgt_policy) * value_loss
             
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -193,12 +194,14 @@ def train_model(config, model, dataset):
             best_val_loss = val_total_loss
             early_stopping_counter = 0
             checkpoint_path = checkpoints_dir / f"model_epoch_{epoch+1}_loss_{val_total_loss:.4f}.pt"
+            best_ckpt = checkpoints_dir / f"model_iter_{iteration}_latest.pt"
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'val_loss': val_total_loss,
             }, checkpoint_path)
+            shutil.copy(checkpoint_path, best_ckpt)
             logger.info(f"Saved checkpoint to {checkpoint_path}")
         else:
             early_stopping_counter += 1
@@ -248,12 +251,12 @@ class ChessDataset(torch.utils.data.Dataset):
 
 # Usage example:
 if __name__ == "__main__":
-    from model.value_policy_net import ValuePolicyNet
-    from config import config
+    from ..model.value_policy_net import ValuePolicyNet
+    from ..config import config
     import pandas as pd
     import numpy as np
     iter = sys.argv[1] if len(sys.argv) > 1 else 0
     model = ValuePolicyNet(config.model)
     dataset = ChessDataset(iteration=iter)  # Initialize your dataset
 
-    trained_model = train_model(config.model, model, dataset)
+    trained_model = train_model(config.model, model, dataset, iter)

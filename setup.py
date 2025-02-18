@@ -35,6 +35,7 @@ setup(
         'console_scripts': [
             'self_play = alphazero.self_play:main',
             'train_value_policy = alphazero.train_value_policy:main',
+            'server = alphazero.server:main'
         ]
     }
 )

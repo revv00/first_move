@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torchvision.models.resnet import BasicBlock
 
 from logging import getLogger
-from env.chessboard import action_labels
+from ..env.chessboard import action_labels
 
 logger = getLogger(__name__)
 
@@ -59,7 +59,10 @@ class ValuePolicyNet(nn.Module):
         return policy, value
         
     def load_model(self, filepath):
-        self.load_state_dict(torch.load(filepath))
+        if filepath is not None:
+            self.load_state_dict(torch.load(filepath)['model_state_dict'])
+        else:
+            logger.error("No model file path provided, use init model")
         
     def save_model(self, filepath):
         torch.save(self.state_dict(), filepath)
