@@ -6,7 +6,7 @@ def get_data_files(directory):
     file_pairs = []
     for root, _, files in os.walk(directory):
         install_dir = os.path.join('first_move', root)  # Include package name in path
-        file_paths = [os.path.join(root, f) for f in files]
+        file_paths = [os.path.join(root, f) for f in files if not f.endswith('parquet')]
         if file_paths:
             file_pairs.append((install_dir, file_paths))
     return file_pairs

@@ -1,6 +1,7 @@
 import yaml
 import munch
 import os
+from enum import Enum
 
 def load_config_from_yaml(file_path):
     with open(file_path, 'r') as file:
@@ -12,6 +13,10 @@ config_path = root_path + '/config/model.yaml'
 yaml_config = load_config_from_yaml(config_path)
 service_yaml_config = load_config_from_yaml(root_path + '/config/service.yaml')
 
+class PolicyType(Enum):
+    RANDOM = 'random'
+    CNN = 'cnn'
+
 class SelfPlayConfig:
     def __init__(self):
         self.game_num = 1000
@@ -19,11 +24,15 @@ class SelfPlayConfig:
         self.mcts_sims = 2000
         self.rollout_parallelism = 50 # 2000
         self.max_depth = 200
-        self.num_clients = 50
+        self.num_clients = 256
         self.noise_eps = 0.5
         self.dir_alpha = 0.1
         self.wgt_p = float(os.getenv("WGT_P", 1.0))
         self.virtual_loss = 3.0
+        self.red_type = PolicyType.RANDOM
+        self.black_type = PolicyType.RANDOM
+        self.red_iter = 0
+        self.black_iter = 0
         # make sure win_reward is greater than other reward/loss
         self.win_reward = 5.0
         #self.resigned_threshold = 0.8
@@ -53,8 +62,8 @@ class ModelConfig:
 
 class ServiceConfig:
     def __init__(self, yaml_config):
-        self.batch_size_serve = yaml_config.get('batch_size_serve', 256)
-        self.batch_timeout = yaml_config.get('batch_timeout', 0.3)
+        self.batch_size_serve = yaml_config.get('batch_size_serve', 256)#256
+        self.batch_timeout = yaml_config.get('batch_timeout', 1.0)
 
 config = munch.munchify(
     {

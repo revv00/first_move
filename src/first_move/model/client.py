@@ -1,7 +1,7 @@
 import uuid
 import zmq
 import numpy as np
-from config import config
+from ..config import config
 
 class ModelClient:
     def __init__(self):
@@ -11,16 +11,26 @@ class ModelClient:
         self.socket.setsockopt(zmq.IDENTITY, self.client_id)  # Set client ID
         self.socket.connect("ipc:///tmp/model_api.ipc")  # In-process communication
 
-    def predict(self, data):
+    def predict(self, model_iter, data):
         # Send data to the server
-        self.socket.send_multipart([b'',data.tobytes()])  # Serialize data
+        self.socket.send_multipart([
+            b'',
+            model_iter.to_bytes(4, 'little'),
+            np.array(data.shape, dtype=np.int32).tobytes(),
+            data.tobytes()
+        ])  # Serialize data and model_iter
         #self.socket.send_multipart([self.client_id, data.tobytes()])
         # Receive predictions from the server
         _, response = self.socket.recv_multipart()
         #response = self.socket.recv_multipart()
-        pv = np.frombuffer(response, dtype=np.float32)  # Deserialize policy and value
-        policy = pv[:4]  # Deserialize policy
-        value = pv[4:]  # Deserialize value
+        #print(response)
+        pv = np.frombuffer(response, dtype=np.float32)  # Deserialize combined data
+        policy = pv[:-1]  # First 4 elements are policy
+        value = pv[-1]   # Last element is the scalar value
+        print(policy, value)
+        #pv = np.frombuffer(response, dtype=np.float32)  # Deserialize policy and value
+        #policy = pv[:4]  # Deserialize policy
+        #value = pv[4:]  # Deserialize value
         return policy, value
 
     def close(self):

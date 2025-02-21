@@ -4,19 +4,23 @@ import logging
 import threading
 import queue
 import time
+import torch
 import numpy as np
 from threading import Thread, Lock
 from logging import getLogger
 from collections import defaultdict
 from .value_policy_net import ValuePolicyNet
+from ..config import config
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = getLogger(__name__)
 
 class CChessModelAPI:
-    def __init__(self, config, model_path):
-        self.agent_model = ValuePolicyNet(config.model)  # CChessModel
-        self.agent_model.load_model(model_path)
+    def __init__(self, config, model_path='./checkpoints/model_iter_%d_latest.pt', model_ids=[]):
+        self.agent_models = {}
+        for model_id in model_ids:
+            self.agent_models[model_id] = ValuePolicyNet(config.model)  # CChessModel
+            self.agent_models[model_id].load_model(model_path%(model_id))
         self.config = config.service
         self.done = False
         self.batch_size = self.config.batch_size_serve  # Batch size from config
@@ -51,16 +55,18 @@ class CChessModelAPI:
                 # Receive client identity and request
                 client_id = self.socket.recv()
                 _ = self.socket.recv()  # Empty delimiter
-                msg = self.socket.recv()
-
+                model_iter = int.from_bytes(self.socket.recv(4), 'little')  # Receive model iteration
+                shape = np.frombuffer(self.socket.recv(), dtype=np.int32)  # Receive shape
+                msg = self.socket.recv()  # Receive actual data
                 # Unpack numpy array from bytes
                 #array = np.frombuffer(msg[8:], dtype=np.float32)
                 #shape = np.frombuffer(msg[:8], dtype=np.int32)
                 #array = array.reshape(shape)
-                array = np.frombuffer(msg, dtype=np.float32)
+                array = np.frombuffer(msg, dtype=np.float32).reshape(shape)
+                #print(f"Received request from {client_id} for model iteration {model_iter}:{array.shape}")
 
                 # Queue the request with client ID
-                self.request_queue.put((client_id, array))
+                self.request_queue.put((client_id, model_iter, array))
 
             except Exception as e:
                 logger.error(f"Error receiving request: {e}")
@@ -75,7 +81,7 @@ class CChessModelAPI:
             while len(batch_arrays) < self.batch_size and \
                 time.time() - start_time < self.batch_timeout:
                 try:
-                    client_id, array = self.request_queue.get(
+                    client_id, model_iter, array = self.request_queue.get(
                         timeout=self.batch_timeout - (time.time() - start_time)
                     )
                     batch_arrays.append(array)
@@ -88,23 +94,18 @@ class CChessModelAPI:
 
             try:
                 # Process batch
-                batch_data = np.vstack(batch_arrays)
-                #with self.agent_model.graph.as_default():
-                #    policy_ary, value_ary = self.agent_model.model.predict_on_batch(batch_data)
-                policy_ary, value_ary = \
-                    np.zeros((len(batch_arrays), 4), dtype=np.float32), \
-                    np.zeros((len(batch_arrays), 4), dtype=np.float32)
+                batch_data = np.stack(batch_arrays, axis=0)
+                print("Stacked:", batch_data.shape)
+                policy_ary, value_ary = self.agent_models[model_iter](torch.tensor(batch_data))
+                print("Processed:", policy_ary.shape, value_ary.shape)
 
                 # Send results back to clients
                 start_idx = 0
                 for i, client_id in enumerate(client_ids):
-                    size = len(batch_arrays[i])
-                    end_idx = start_idx + size
-
                     # Get client's results
-                    client_policies = policy_ary[start_idx:end_idx]
-                    client_values = value_ary[start_idx:end_idx]
-                    print(client_policies, client_values)
+                    client_policies = policy_ary[i]
+                    client_values = value_ary[i]
+                    
                     # Pack results
                     result_msg = self.pack_results(client_policies, client_values)
 
@@ -114,9 +115,6 @@ class CChessModelAPI:
                         b'',  # Empty delimiter
                         result_msg
                     ])
-
-                    start_idx = end_idx
-
             except Exception as e:
                 logger.error(f"Error processing batch: {e}")
                 # Send error response to all clients in batch
@@ -128,15 +126,11 @@ class CChessModelAPI:
                     ])
 
     @staticmethod
-    def pack_results(policies, values):
-        # Pack shapes
-        shape_data = np.array([len(policies), policies[0].shape[0]], dtype=np.int32).tobytes()
-
+    def pack_results(policy, value):
         # Pack policies and values
-        policy_data = np.vstack(policies).tobytes()
-        value_data = np.array(values, dtype=np.float32).tobytes()
+        policy_data = policy.detach().numpy().tobytes()
+        value_data = value.detach().numpy().tobytes()
 
-        #return shape_data + policy_data + value_data
         return policy_data + value_data
 
     def close(self):
@@ -149,10 +143,9 @@ class CChessModelAPI:
         self.batch_thread.join()
 
 if __name__ == '__main__':
-    from ..config import config
     # Start the model API
-    mp = sys.argv[1] if len(sys.argv) > 1 else None
-    model_api = CChessModelAPI(config, model_path=mp)
+    model_ids = [int(i) for i in sys.argv[1].split(',')] if len(sys.argv) > 1 else []
+    model_api = CChessModelAPI(config, model_ids=model_ids)
     model_api.start()
     try:
         while True:

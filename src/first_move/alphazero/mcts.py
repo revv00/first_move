@@ -9,9 +9,13 @@ import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
 from threading import Lock
+
+
+from ..config import PolicyType
 from ..env.common import *
 from ..env import chessboard
 from ..env.chessboard import ChessBoard, action_labels
+from ..model.client import ModelClient
 # from model.client import ModelClient
 
 logger = logging.getLogger(__name__)
@@ -47,14 +51,23 @@ class MCTS:
         self._print_lock = Lock()
         #self._model_clients = ThreadPoolExecutor(max_workers=self._config.num_clients)
         self._client_queue = queue.Queue()
+        self._current_policy = PolicyType.RANDOM
+        self._current_policy_iter = 0
         # TODO: uncomment this
-        #for _ in range(self._config.num_clients):
-        #    self._client_queue.put(ModelClient())
+        for _ in range(self._config.num_clients):
+            self._client_queue.put(ModelClient())
+
+    def __del__(self):
+        while not self._client_queue.empty():
+            client = self._client_queue.get()
+            client.close()
 
     def mcts_srch(self, board, can_stop=True):
         # reset for every actual move
         self._tree = defaultdict(StateStats)
         player = board.turn
+        self._current_policy = self._config.red_type if player == RED else self._config.black_type
+        self._current_policy_iter = self._config.red_iter if player == RED else self._config.black_iter
         with ThreadPoolExecutor(max_workers=self._config.rollout_parallelism) as executor:
             futures = [executor.submit(self.mcts_srch_once, copy.deepcopy(board)) for _ in range(self._config.mcts_sims)]
             vals = [future.result()[1] for future in futures]
@@ -109,24 +122,23 @@ class MCTS:
             with self._print_lock:
                 logger.debug(f"Find end state {board.board}, {v}")
             return None, v
-        plane = board.get_plane()
         #dirichlet_distribution = np.random.dirichlet([1.0] * len(action_labels))
-        distribution = np.ones(len(action_labels)) / len(action_labels) \
-            if self._config.is_random_policy_uniform == 1 else \
-            np.random.multinomial(
-                len(action_labels),
-                np.ones(len(action_labels))/len(action_labels)
-            ) / len(action_labels)
-        return distribution, random.choice([-0.1, 0, 0.1])
-        # As if it is red
-        """
-        model_client = self._client_queue.get()
-        try:
-            p, v = model_client.evaluate()
-        finally:
-            self._client_queue.put(model_client)
-        return p, v
-        """
+        if self._current_policy == PolicyType.RANDOM:
+            distribution = np.ones(len(action_labels)) / len(action_labels) \
+                if self._config.is_random_policy_uniform == 1 else \
+                np.random.multinomial(
+                    len(action_labels),
+                    np.ones(len(action_labels))/len(action_labels)
+                ) / len(action_labels)
+            return distribution, random.choice([-0.1, 0, 0.1])
+        else:
+            plane = board.get_plane()
+            model_client = self._client_queue.get()
+            try:
+                p, v = model_client.predict(self._current_policy_iter, plane)
+            finally:
+                self._client_queue.put(model_client)
+            return p, v
 
     def mcts_srch_once(self, board, level=0):
         """
