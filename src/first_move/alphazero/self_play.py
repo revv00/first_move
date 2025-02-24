@@ -1,7 +1,7 @@
+import subprocess
 import os, sys
 import fire
 from collections import deque, defaultdict
-from concurrent.futures import ProcessPoolExecutor
 from enum import Enum
 from ..config import config, PolicyType
 from .mcts import MCTS
@@ -57,23 +57,27 @@ def play_a_game(config, iteration=0, task_id=0):
     mcts.update_history_with_red_value(value)
     mcts.save_history(iteration, task_id)
     for brd, turn, policy, value in mcts._history[-1:]:
-        print(f"Turn: {turn}, Value: {value}")
+        print(f"Task: {task_id}, Turn: {turn}, Value: {value}")
     return mcts._history
 
+
 def main(iteration=0, red_iter=0, black_iter=0, red_type='random', black_type='random'):
+    # Set start method to 'spawn' before creating ProcessPoolExecutor
+    import multiprocessing as mp
+    from concurrent.futures import ProcessPoolExecutor
+    sys.setrecursionlimit(5000)
     config.self_play.red_type = PolicyType(red_type)
     config.self_play.black_type = PolicyType(black_type)
-    config.self_play.red_iter = red_iter
-    config.self_play.black_iter = black_iter
+    config.self_play.red_iter = int(red_iter)
+    config.self_play.black_iter = int(black_iter)
     futures = deque()
     tasks = config.self_play.game_num
-    parallel = os.cpu_count()
-    with ProcessPoolExecutor(max_workers=parallel) as executor:
+    parallel = os.cpu_count() * 2
+    with ProcessPoolExecutor(max_workers=parallel, mp_context=mp.get_context("spawn")) as executor:
         for i in range(tasks):
-            futures.append(executor.submit(play_a_game, config, iteration, i))
+            futures.append(executor.submit(play_a_game, config, int(iteration), i))
         for future in futures:
             result = future.result()
 
 if __name__ == '__main__':
     fire.Fire(main)
-        

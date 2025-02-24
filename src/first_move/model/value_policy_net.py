@@ -60,8 +60,10 @@ class ValuePolicyNet(nn.Module):
         
     def load_model(self, filepath):
         if filepath is not None:
-            checkpoint = torch.load(filepath, map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            checkpoint = torch.load(filepath, map_location=device)
             self.load_state_dict(checkpoint['model_state_dict'])
+            self.to(device)
         else:
             logger.error("No model file path provided, use init model")
         

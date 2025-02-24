@@ -24,7 +24,7 @@ class SelfPlayConfig:
         self.mcts_sims = 2000
         self.rollout_parallelism = 50 # 2000
         self.max_depth = 200
-        self.num_clients = 256
+        self.num_clients = 32 #256
         self.noise_eps = 0.5
         self.dir_alpha = 0.1
         self.wgt_p = float(os.getenv("WGT_P", 1.0))
@@ -62,8 +62,8 @@ class ModelConfig:
 
 class ServiceConfig:
     def __init__(self, yaml_config):
-        self.batch_size_serve = yaml_config.get('batch_size_serve', 256)#256
-        self.batch_timeout = yaml_config.get('batch_timeout', 1.0)
+        self.batch_size_serve = yaml_config.get('batch_size_serve', 512)#256
+        self.batch_timeout = yaml_config.get('batch_timeout', 0.3)
 
 config = munch.munchify(
     {

@@ -38,7 +38,7 @@ class TestSelfPlay(unittest.TestCase):
         config.self_play.black_type = PolicyType('random')
         config.self_play.red_iter = 0
         config.self_play.black_iter = 0
-        hist = play_a_game(iteration=1, config)
+        hist = play_a_game(config, iteration=1)
         print("History:")
         last_brd = None
         for brd, turn, policy, value in hist:

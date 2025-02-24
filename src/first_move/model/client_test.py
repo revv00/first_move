@@ -10,7 +10,7 @@ from ..env.chessboard import ChessBoard
 # Create multiple clients and send prediction requests
 client_queue = queue.Queue()
 # TODO: uncomment this
-CLIENTS=256
+CLIENTS=1024
 for _ in range(CLIENTS):
     client_queue.put(ModelClient())
 
@@ -28,5 +28,5 @@ def test(i):
     return policy, value
     
 with ThreadPoolExecutor(max_workers=CLIENTS) as executor:
-    futures = [executor.submit(test, i) for i in range(2000)]
+    futures = [executor.submit(test, i) for i in range(20000)]
     vals = [future.result()[1] for future in futures]

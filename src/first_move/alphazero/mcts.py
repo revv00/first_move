@@ -53,7 +53,6 @@ class MCTS:
         self._client_queue = queue.Queue()
         self._current_policy = PolicyType.RANDOM
         self._current_policy_iter = 0
-        # TODO: uncomment this
         for _ in range(self._config.num_clients):
             self._client_queue.put(ModelClient())
 
