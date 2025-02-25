@@ -13,6 +13,7 @@ class ModelClient:
         self.socket = self.context.socket(zmq.DEALER)  # DEALER socket for request/reply
         self.client_id = uuid.uuid4().bytes  # Unique client ID
         self.socket.setsockopt(zmq.IDENTITY, self.client_id)  # Set client ID
+        self.socket.setsockopt(zmq.RCVTIMEO, 2000) # 2sec
         self.socket.connect("ipc:///tmp/model_api.ipc")  # In-process communication
 
     def predict(self, model_iter, data):

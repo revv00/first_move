@@ -72,7 +72,7 @@ class CChessModelAPI:
                 # Queue the request with client ID
                 self.request_queue.put((client_id, model_iter, array))
                 i += 1
-                # print("Received:", i, self.request_queue.qsize())
+                print("Received:", i, self.request_queue.qsize())
 
             except Exception as e:
                 traceback.print_exc()
@@ -130,6 +130,8 @@ class CChessModelAPI:
                         send_queue.put((client_ids, policy_ary.cpu(), value_ary.cpu()))
                         print("Processed:", time.time()-end_time, end_time-mid_time, mid_time-start_time, tot, len(client_ids), model_iter)
                         torch.cuda.empty_cache()
+                else:
+                    print("Empty batch")
                 
                 # Collect next batch
                 client_ids = []

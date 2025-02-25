@@ -4,6 +4,7 @@ import queue
 import math
 import random
 import logging
+import traceback
 import numpy as np
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
@@ -135,6 +136,12 @@ class MCTS:
             model_client = self._client_queue.get()
             try:
                 p, v = model_client.predict(self._current_policy_iter, plane)
+            except:
+                traceback.print_exc()
+                # degrade to randomm policy
+                logger.error("Degrade to a random policy")
+                p = np.ones(len(action_labels)) / len(action_labels) 
+                v = random.choice([-0.1, 0, 0.1])
             finally:
                 self._client_queue.put(model_client)
             return p, v
@@ -163,7 +170,7 @@ class MCTS:
                             p_all += ps[action_labels[m]]
                             legal_mvs.append(action_labels[m])
                         for m in legal_mvs:
-                            stats._as[m].p = ps[m] / p_all
+                            stats._as[m].p = ps[m] / (p_all + 1e-9)
                     stats.v = v
                     stats.ps = ps
                 with self._print_lock:
