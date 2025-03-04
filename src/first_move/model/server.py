@@ -21,6 +21,7 @@ logger = getLogger(__name__)
 class CChessModelAPI:
     def __init__(self, config, model_path='./checkpoints/model_iter_%d_latest.pt', model_ids=[]):
         self.agent_models = {}
+        self._model_path = model_path
         for model_id in model_ids:
             self.agent_models[model_id] = ValuePolicyNet(config.model)
             self.agent_models[model_id].load_model(model_path % model_id)
@@ -78,7 +79,7 @@ class CChessModelAPI:
                     array = np.frombuffer(msg, dtype=np.int8).reshape(shape).astype(np.float32)
                     self.request_queue.put((client_id, model_iter, array))
                     i += 1
-                    print("Received:", i, self.request_queue.qsize())
+                    #print("Received:", i, self.request_queue.qsize())
                 except Exception as e:
                     logger.error(f"Error receiving request: {e}")
                     traceback.print_exc()
@@ -99,9 +100,11 @@ class CChessModelAPI:
             client_id, model_iter, array = self.request_queue.get()
             expected_shape = array.shape
             batch_arrays = np.empty((self.batch_size, *expected_shape), dtype=np.float32)
+            batch_tensor = torch.zeros((self.batch_size, *expected_shape), device='cuda')
             batch_arrays[0] = array
             client_ids = [client_id]
             current_batch_size = 1
+            iteration = 0
 
             while not self.done:
                 # Collect batch data
@@ -109,6 +112,10 @@ class CChessModelAPI:
                 while current_batch_size < self.batch_size and time.time() - start_time < self.batch_timeout:
                     try:
                         client_id, model_iter, array = self.request_queue.get(timeout=0.1)
+                        if model_iter not in self.agent_models:
+                            self.agent_models[model_iter] = ValuePolicyNet(config.model)
+                            self.agent_models[model_iter].load_model(self._model_path % model_iter)
+                            self.agent_models[model_iter].eval()
                         batch_arrays[current_batch_size] = array
                         client_ids.append(client_id)
                         current_batch_size += 1
@@ -119,12 +126,20 @@ class CChessModelAPI:
                     continue
 
                 # Process batch
-                with torch.cuda.stream(torch.cuda.Stream()):
-                    batch_tensor = torch.from_numpy(batch_arrays[:current_batch_size]).to('cuda')
+                # stream = torch.cuda.Stream()
+                #with torch.cuda.stream(stream):
+                if True:
+                    #batch_tensor = torch.from_numpy(batch_arrays[:current_batch_size]).to('cuda')
+                    batch_tensor[:current_batch_size].copy_(torch.from_numpy(batch_arrays[:current_batch_size]))
+
                     with torch.no_grad():
-                        policy_ary, value_ary = self.agent_models[model_iter](batch_tensor)
+                        policy_ary, value_ary = self.agent_models[model_iter](batch_tensor[:current_batch_size])
+                    iteration += 1
+
                     policy_ary = policy_ary.cpu()
                     value_ary = value_ary.cpu()
+                    # stream.synchronize()
+
 
                 # Send results via PAIR socket
                 for i in range(current_batch_size):

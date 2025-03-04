@@ -13,7 +13,7 @@ class ModelClient:
         self.socket = self.context.socket(zmq.DEALER)  # DEALER socket for request/reply
         self.client_id = uuid.uuid4().bytes  # Unique client ID
         self.socket.setsockopt(zmq.IDENTITY, self.client_id)  # Set client ID
-        self.socket.setsockopt(zmq.RCVTIMEO, 2000) # 2sec
+        self.socket.setsockopt(zmq.RCVTIMEO, 5000) # 2sec
         self.socket.connect("ipc:///tmp/model_api.ipc")  # In-process communication
 
     def predict(self, model_iter, data):
@@ -35,7 +35,7 @@ class ModelClient:
         pv = np.frombuffer(response, dtype=np.float16)  # Deserialize combined data
         policy = pv[:-1]  # First 4 elements are policy
         value = pv[-1]   # Last element is the scalar value
-        print(policy, value)
+        #print(policy, value)
         #pv = np.frombuffer(response, dtype=np.float32)  # Deserialize policy and value
         #policy = pv[:4]  # Deserialize policy
         #value = pv[4:]  # Deserialize value

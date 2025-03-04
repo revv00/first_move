@@ -72,7 +72,7 @@ def main(iteration=0, red_iter=0, black_iter=0, red_type='random', black_type='r
     config.self_play.black_iter = int(black_iter)
     futures = deque()
     tasks = config.self_play.game_num
-    parallel = os.cpu_count() * 2
+    parallel = os.cpu_count()
     with ProcessPoolExecutor(max_workers=parallel, mp_context=mp.get_context("spawn")) as executor:
         for i in range(tasks):
             futures.append(executor.submit(play_a_game, config, int(iteration), i))
