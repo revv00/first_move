@@ -70,14 +70,18 @@ class CChessModelAPI:
             socks = dict(poller.poll(100))  # 100ms timeout to check self.done
             if self.socket in socks and socks[self.socket] == zmq.POLLIN:
                 try:
-                    client_id = self.socket.recv()
-                    _ = self.socket.recv()  # Empty delimiter
-                    model_iter = int.from_bytes(self.socket.recv(4), 'little')
-                    shape = np.frombuffer(self.socket.recv(), dtype=np.int32)
-                    msg = self.socket.recv()
-                    assert len(msg) == 1260
-                    array = np.frombuffer(msg, dtype=np.int8).reshape(shape).astype(np.float32)
-                    self.request_queue.put((client_id, model_iter, array))
+                    # Receive all parts in one call to reduce syscalls
+                    parts = self.socket.recv_multipart()
+                    client_id, _, model_iter_bytes, shape_bytes, msg = parts
+                    
+                    # Direct conversion to int without intermediate bytes object
+                    model_iter = int.from_bytes(model_iter_bytes, 'little')
+                    
+                    # Use frombuffer without copying and reshape in one step
+                    array = np.frombuffer(msg, dtype=np.int8)
+                    array.shape = np.frombuffer(shape_bytes, dtype=np.int32)
+                    
+                    self.request_queue.put((client_id, model_iter, array.astype(np.float32)))
                     i += 1
                     #print("Received:", i, self.request_queue.qsize())
                 except Exception as e:
@@ -86,8 +90,29 @@ class CChessModelAPI:
 
             if self.response_socket in socks and socks[self.response_socket] == zmq.POLLIN:
                 try:
-                    client_id, packed_result = self.response_socket.recv_multipart(flags=zmq.NOBLOCK)
-                    self.socket.send_multipart([client_id, b'', packed_result], flags=zmq.NOBLOCK)
+                    message = self.response_socket.recv_multipart(flags=zmq.NOBLOCK)
+                    if message[0] == b'BATCH':
+                        batch_size = np.frombuffer(message[1], dtype=np.int32)[0]
+                        # Create views instead of copies
+                        policy_data = np.frombuffer(message[2], dtype=np.float16).reshape(batch_size, -1)
+                        value_data = np.frombuffer(message[3], dtype=np.float16).reshape(batch_size, -1)
+                        client_id_length = len(message[4]) // batch_size
+                        # Pre-allocate response buffer
+                        response = policy_data[0].nbytes + value_data[0].nbytes
+                        
+                        # Use memoryview for faster slicing
+                        client_ids_view = memoryview(message[4])
+                        
+                        # Avoid list comprehension and do direct indexing
+                        for i in range(batch_size):
+                            client_id = client_ids_view[i*client_id_length:(i+1)*client_id_length].tobytes()
+                            # Combine policy and value data directly
+                            self.socket.send_multipart([
+                                client_id, 
+                                b'',
+                                message[2][i*policy_data[0].nbytes:(i+1)*policy_data[0].nbytes] + 
+                                message[3][i*value_data[0].nbytes:(i+1)*value_data[0].nbytes]
+                            ], flags=zmq.NOBLOCK)
                 except zmq.Again:
                     continue
 
@@ -128,23 +153,37 @@ class CChessModelAPI:
                 # Process batch
                 # stream = torch.cuda.Stream()
                 #with torch.cuda.stream(stream):
-                if True:
-                    #batch_tensor = torch.from_numpy(batch_arrays[:current_batch_size]).to('cuda')
-                    batch_tensor[:current_batch_size].copy_(torch.from_numpy(batch_arrays[:current_batch_size]))
+                #batch_tensor = torch.from_numpy(batch_arrays[:current_batch_size]).to('cuda')
+                batch_tensor[:current_batch_size].copy_(torch.from_numpy(batch_arrays[:current_batch_size]))
 
-                    with torch.no_grad():
-                        policy_ary, value_ary = self.agent_models[model_iter](batch_tensor[:current_batch_size])
-                    iteration += 1
+                with torch.no_grad():
+                    policy_ary, value_ary = self.agent_models[model_iter](batch_tensor[:current_batch_size])
+                iteration += 1
 
-                    policy_ary = policy_ary.cpu()
-                    value_ary = value_ary.cpu()
-                    # stream.synchronize()
+                policy_ary = policy_ary.cpu()
+                value_ary = value_ary.cpu()
+                # stream.synchronize()
 
 
                 # Send results via PAIR socket
-                for i in range(current_batch_size):
-                    packed = self.pack_results(policy_ary[i], value_ary[i])
-                    response_sender.send_multipart([client_ids[i], packed], flags=zmq.NOBLOCK)
+                # Convert directly to float16 on GPU to reduce memory transfer
+                policy_numpy = policy_ary[:current_batch_size].half().cpu().numpy()
+                value_numpy = value_ary[:current_batch_size].half().cpu().numpy()
+                
+                # Pre-allocate the client_ids bytes
+                client_ids_bytes = bytearray(sum(len(cid) for cid in client_ids))
+                offset = 0
+                for cid in client_ids:
+                    client_ids_bytes[offset:offset + len(cid)] = cid
+                    offset += len(cid)
+                
+                response_sender.send_multipart([
+                    b'BATCH',
+                    np.array(current_batch_size, dtype=np.int32).tobytes(),
+                    policy_numpy.tobytes(),
+                    value_numpy.tobytes(),
+                    client_ids_bytes
+                ], flags=zmq.NOBLOCK)
 
                 # Reset for next batch
                 batch_arrays = np.empty((self.batch_size, *expected_shape), dtype=np.float32)

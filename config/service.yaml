@@ -1,2 +1,2 @@
-batch_size_serve: 256
+batch_size_serve: 200
 batch_timeout: 0.3
